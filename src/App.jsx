@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, onSnapshot } from 'firebase/firestore';
-import { Clock, MapPin, User, Check, Calendar, Users, ChevronDown, ChevronUp, LogOut, Filter, List, CalendarDays, AlertTriangle } from 'lucide-react';
+// WICHTIG: deleteDoc wurde hier im Import hinzugefügt
+import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { Clock, MapPin, User, Check, Calendar, Users, ChevronDown, ChevronUp, LogOut, Filter, List, CalendarDays, AlertTriangle, ArrowLeft } from 'lucide-react';
 
 // --- FIREBASE INITIALISIERUNG ---
 // Deine eigenen Firebase-Daten für das finale Hosting:
@@ -28,85 +29,103 @@ const appId = isCanvas && typeof __app_id !== 'undefined' ? __app_id : 'hurrican
 // Die echten Zeiten & Stages für 2026 inkl. realistischer Endzeiten
 const HURRICANE_ACTS = [
   // Donnerstag
-  { id: 'do1', day: 'Donnerstag', time: '17:30', endTime: '18:15', stage: 'Wild Coast Stage', name: 'Hansemädchen' },
+  { id: 'do1', day: 'Donnerstag', time: '17:30', endTime: '18:30', stage: 'Wild Coast Stage', name: 'Hansemädchen' },
   { id: 'do2', day: 'Donnerstag', time: '18:30', endTime: '19:30', stage: 'Wild Coast Stage', name: 'Siegfried & Joy' },
   { id: 'do3', day: 'Donnerstag', time: '20:00', endTime: '21:00', stage: 'Wild Coast Stage', name: 'Herrenmagazin' },
   { id: 'do4', day: 'Donnerstag', time: '21:30', endTime: '22:30', stage: 'Wild Coast Stage', name: 'Paula Carolina' },
-  { id: 'do5', day: 'Donnerstag', time: '23:00', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Juli' },
-  { id: 'do6', day: 'Donnerstag', time: '00:30', endTime: '01:30', stage: 'Wild Coast Stage', name: 'Disarstar' },
+  { id: 'do5', day: 'Donnerstag', time: '23:00', endTime: '00:15', stage: 'Wild Coast Stage', name: 'Juli' },
+  { id: 'do6', day: 'Donnerstag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Disarstar' },
+  { id: 'do7', day: 'Donnerstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique' },
 
   // Freitag
   { id: 'fr1', day: 'Freitag', time: '15:00', endTime: '15:30', stage: 'Forest Stage', name: '#HURRICANESWIMTEAM' },
   { id: 'fr2', day: 'Freitag', time: '15:30', endTime: '16:00', stage: 'River Stage', name: 'Anda Morts' },
-  { id: 'fr3', day: 'Freitag', time: '15:30', endTime: '16:15', stage: 'Wild Coast Stage', name: 'Raynor' },
+  { id: 'fr3', day: 'Freitag', time: '15:30', endTime: '16:00', stage: 'Wild Coast Stage', name: 'Raynor' },
   { id: 'fr4', day: 'Freitag', time: '16:00', endTime: '16:45', stage: 'Forest Stage', name: 'Grandson' },
   { id: 'fr5', day: 'Freitag', time: '16:00', endTime: '16:45', stage: 'Mountain Stage', name: 'The Ataris' },
   { id: 'fr6', day: 'Freitag', time: '16:30', endTime: '17:15', stage: 'River Stage', name: 'Rikas' },
-  { id: 'fr7', day: 'Freitag', time: '16:30', endTime: '17:30', stage: 'Wild Coast Stage', name: 'Militarie Gun' },
-  { id: 'fr8', day: 'Freitag', time: '17:15', endTime: '18:00', stage: 'Forest Stage', name: 'Sondaschule' },
+  { id: 'fr7', day: 'Freitag', time: '16:30', endTime: '17:15', stage: 'Wild Coast Stage', name: 'Militarie Gun' },
+  { id: 'fr8', day: 'Freitag', time: '17:15', endTime: '18:15', stage: 'Forest Stage', name: 'Sondaschule' },
   { id: 'fr9', day: 'Freitag', time: '17:15', endTime: '18:00', stage: 'Mountain Stage', name: 'Basement' },
-  { id: 'fr10', day: 'Freitag', time: '18:00', endTime: '18:45', stage: 'River Stage', name: 'Royel Otis' },
+  { id: 'fr10', day: 'Freitag', time: '18:00', endTime: '19:00', stage: 'River Stage', name: 'Royel Otis' },
   { id: 'fr11', day: 'Freitag', time: '18:00', endTime: '19:00', stage: 'Wild Coast Stage', name: 'Kayla Shyx' },
   { id: 'fr12', day: 'Freitag', time: '18:45', endTime: '19:45', stage: 'Forest Stage', name: 'Donots' },
   { id: 'fr13', day: 'Freitag', time: '18:45', endTime: '19:45', stage: 'Mountain Stage', name: 'President' },
   { id: 'fr14', day: 'Freitag', time: '19:30', endTime: '20:30', stage: 'River Stage', name: 'Bosse' },
-  { id: 'fr15', day: 'Freitag', time: '19:30', endTime: '20:45', stage: 'Wild Coast Stage', name: 'Esther Graf' },
+  { id: 'fr15', day: 'Freitag', time: '19:30', endTime: '20:30', stage: 'Wild Coast Stage', name: 'Esther Graf' },
   { id: 'fr16', day: 'Freitag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'The Offspring' },
   { id: 'fr17', day: 'Freitag', time: '20:30', endTime: '21:45', stage: 'Mountain Stage', name: 'Drunken Masters' },
-  { id: 'fr18', day: 'Freitag', time: '21:45', endTime: '23:00', stage: 'River Stage', name: 'Yungblud' },
-  { id: 'fr19', day: 'Freitag', time: '21:45', endTime: '23:00', stage: 'Wild Coast Stage', name: 'Betterov' },
+  { id: 'fr18', day: 'Freitag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Yungblud' },
+  { id: 'fr19', day: 'Freitag', time: '21:45', endTime: '22:45', stage: 'Wild Coast Stage', name: 'Betterov' },
   { id: 'fr20', day: 'Freitag', time: '23:00', endTime: '00:30', stage: 'Forest Stage', name: 'Kraftklub' },
   { id: 'fr21', day: 'Freitag', time: '23:15', endTime: '00:30', stage: 'Mountain Stage', name: 'Pennywise' },
-  { id: 'fr22', day: 'Freitag', time: '23:15', endTime: '00:30', stage: 'Wild Coast Stage', name: 'Roya' },
+  { id: 'fr22', day: 'Freitag', time: '23:15', endTime: '00:15', stage: 'Wild Coast Stage', name: 'Roya' },
   { id: 'fr23', day: 'Freitag', time: '00:30', endTime: '02:00', stage: 'River Stage', name: 'Roy Bianco & Die Abbrunzati Boys' },
-  { id: 'fr24', day: 'Freitag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Modestep' },
+  { id: 'fr24', day: 'Freitag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Modestep (Live)' },
 
   // Samstag
-  { id: 'sa1', day: 'Samstag', time: '12:00', endTime: '12:45', stage: 'Forest Stage', name: 'Just Mustard' },
-  { id: 'sa2', day: 'Samstag', time: '12:00', endTime: '12:45', stage: 'Mountain Stage', name: 'Blackgold' },
-  { id: 'sa3', day: 'Samstag', time: '12:30', endTime: '13:15', stage: 'River Stage', name: 'Latin Greek' },
-  { id: 'sa4', day: 'Samstag', time: '13:00', endTime: '13:45', stage: 'Forest Stage', name: 'Scene Queen' },
-  { id: 'sa5', day: 'Samstag', time: '13:00', endTime: '13:45', stage: 'Mountain Stage', name: 'The Sophs' },
-  { id: 'sa6', day: 'Samstag', time: '13:30', endTime: '14:15', stage: 'River Stage', name: 'Florence Road' },
-  { id: 'sa7', day: 'Samstag', time: '14:15', endTime: '15:00', stage: 'Forest Stage', name: 'Destroy Boys' },
-  { id: 'sa8', day: 'Samstag', time: '14:15', endTime: '15:00', stage: 'Mountain Stage', name: 'Drei Meter Feldweg' },
-  { id: 'sa9', day: 'Samstag', time: '14:45', endTime: '15:30', stage: 'River Stage', name: 'Ritter Lean' },
-  { id: 'sa10', day: 'Samstag', time: '15:30', endTime: '16:30', stage: 'Forest Stage', name: 'All Time Low' },
-  { id: 'sa11', day: 'Samstag', time: '15:30', endTime: '16:30', stage: 'Mountain Stage', name: 'PA69' },
-  { id: 'sa12', day: 'Samstag', time: '16:00', endTime: '17:00', stage: 'River Stage', name: 'Natasha Bedingfield' },
-  { id: 'sa13', day: 'Samstag', time: '17:00', endTime: '18:00', stage: 'Forest Stage', name: 'Alexisonfire' },
-  { id: 'sa14', day: 'Samstag', time: '17:00', endTime: '18:00', stage: 'Mountain Stage', name: 'Kasi' },
-  { id: 'sa15', day: 'Samstag', time: '17:45', endTime: '18:45', stage: 'River Stage', name: 'Kaffkiez' },
-  { id: 'sa16', day: 'Samstag', time: '18:45', endTime: '19:45', stage: 'Forest Stage', name: 'Nothing But Thieves' },
-  { id: 'sa17', day: 'Samstag', time: '18:45', endTime: '20:00', stage: 'Mountain Stage', name: 'OG Keemo' },
-  { id: 'sa18', day: 'Samstag', time: '19:30', endTime: '20:45', stage: 'River Stage', name: 'Wolf Alice' },
-  { id: 'sa19', day: 'Samstag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'Papa Roach' },
-  { id: 'sa20', day: 'Samstag', time: '20:45', endTime: '22:00', stage: 'Mountain Stage', name: 'Edwin Rosen' },
-  { id: 'sa21', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Florence + The Machine' },
-  { id: 'sa22', day: 'Samstag', time: '22:55', endTime: '00:30', stage: 'Forest Stage', name: 'Twenty One Pilots' },
-  { id: 'sa23', day: 'Samstag', time: '23:15', endTime: '00:30', stage: 'Mountain Stage', name: 'SSIO' },
-  { id: 'sa24', day: 'Samstag', time: '00:30', endTime: '02:00', stage: 'River Stage', name: 'Finch' },
+  { id: 'sa1', day: 'Samstag', time: '11:00', endTime: '12:00', stage: 'Wild Coast Stage', name: 'Deutschland3000' },
+  { id: 'sa2', day: 'Samstag', time: '12:00', endTime: '12:30', stage: 'Forest Stage', name: 'Just Mustard' },
+  { id: 'sa3', day: 'Samstag', time: '12:00', endTime: '12:30', stage: 'Mountain Stage', name: 'Blackgold' },
+  { id: 'sa4', day: 'Samstag', time: '12:30', endTime: '13:00', stage: 'River Stage', name: 'Latin Greek' },
+  { id: 'sa5', day: 'Samstag', time: '12:30', endTime: '13:00', stage: 'Wild Coast Stage', name: 'Violent Vortex' },
+  { id: 'sa6', day: 'Samstag', time: '13:00', endTime: '13:45', stage: 'Forest Stage', name: 'Scene Queen' },
+  { id: 'sa7', day: 'Samstag', time: '13:00', endTime: '13:45', stage: 'Mountain Stage', name: 'The Sophs' },
+  { id: 'sa8', day: 'Samstag', time: '13:30', endTime: '14:15', stage: 'River Stage', name: 'Florence Road' },
+  { id: 'sa9', day: 'Samstag', time: '13:30', endTime: '14:15', stage: 'Wild Coast Stage', name: 'Picture Parlour' },
+  { id: 'sa10', day: 'Samstag', time: '14:15', endTime: '15:00', stage: 'Forest Stage', name: 'Destroy Boys' },
+  { id: 'sa11', day: 'Samstag', time: '14:15', endTime: '15:00', stage: 'Mountain Stage', name: 'Drei Meter Feldweg' },
+  { id: 'sa12', day: 'Samstag', time: '14:45', endTime: '15:30', stage: 'River Stage', name: 'Ritter Lean' },
+  { id: 'sa13', day: 'Samstag', time: '14:45', endTime: '15:30', stage: 'Wild Coast Stage', name: 'Yonaka' },
+  { id: 'sa14', day: 'Samstag', time: '15:30', endTime: '16:30', stage: 'Forest Stage', name: 'All Time Low' },
+  { id: 'sa15', day: 'Samstag', time: '15:30', endTime: '16:30', stage: 'Mountain Stage', name: 'PA69' },
+  { id: 'sa16', day: 'Samstag', time: '16:00', endTime: '17:00', stage: 'River Stage', name: 'Natasha Bedingfield' },
+  { id: 'sa17', day: 'Samstag', time: '16:15', endTime: '17:15', stage: 'Wild Coast Stage', name: 'Kingfishr' },
+  { id: 'sa18', day: 'Samstag', time: '17:00', endTime: '18:00', stage: 'Forest Stage', name: 'Alexisonfire' },
+  { id: 'sa19', day: 'Samstag', time: '17:00', endTime: '18:00', stage: 'Mountain Stage', name: 'Kasi' },
+  { id: 'sa20', day: 'Samstag', time: '17:45', endTime: '18:45', stage: 'River Stage', name: 'Kaffkiez' },
+  { id: 'sa21', day: 'Samstag', time: '18:00', endTime: '18:45', stage: 'Wild Coast Stage', name: 'RØRY' },
+  { id: 'sa22', day: 'Samstag', time: '18:45', endTime: '19:45', stage: 'Forest Stage', name: 'Nothing But Thieves' },
+  { id: 'sa23', day: 'Samstag', time: '18:45', endTime: '19:45', stage: 'Mountain Stage', name: 'OG Keemo' },
+  { id: 'sa24', day: 'Samstag', time: '19:30', endTime: '20:30', stage: 'River Stage', name: 'Wolf Alice' },
+  { id: 'sa25', day: 'Samstag', time: '19:45', endTime: '20:45', stage: 'Wild Coast Stage', name: 'Orville Peck' },
+  { id: 'sa26', day: 'Samstag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'Papa Roach' },
+  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '22:00', stage: 'Mountain Stage', name: 'Edwin Rosen' },
+  { id: 'sa28', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Florence + The Machine' },
+  { id: 'sa29', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'Wild Coast Stage', name: 'Tinlicker' },
+  { id: 'sa30', day: 'Samstag', time: '22:55', endTime: '00:30', stage: 'Forest Stage', name: 'Twenty One Pilots' },
+  { id: 'sa31', day: 'Samstag', time: '23:15', endTime: '00:30', stage: 'Mountain Stage', name: 'SSIO' },
+  { id: 'sa32', day: 'Samstag', time: '23:30', endTime: '01:00', stage: 'Wild Coast Stage', name: 'David Puentez' },
+  { id: 'sa33', day: 'Samstag', time: '00:30', endTime: '02:00', stage: 'River Stage', name: 'Finch' },
 
   // Sonntag
-  { id: 'so1', day: 'Sonntag', time: '12:00', endTime: '12:45', stage: 'Forest Stage', name: 'Ecca Vandal' },
-  { id: 'so2', day: 'Sonntag', time: '12:00', endTime: '12:45', stage: 'Mountain Stage', name: 'Delilah Bon' },
-  { id: 'so3', day: 'Sonntag', time: '12:30', endTime: '13:15', stage: 'River Stage', name: 'Unpeople' },
-  { id: 'so4', day: 'Sonntag', time: '13:00', endTime: '13:45', stage: 'Forest Stage', name: 'Skindred' },
-  { id: 'so5', day: 'Sonntag', time: '13:00', endTime: '13:45', stage: 'Mountain Stage', name: 'Rosmarin' },
-  { id: 'so6', day: 'Sonntag', time: '13:30', endTime: '14:15', stage: 'River Stage', name: 'Davina Michelle' },
-  { id: 'so7', day: 'Sonntag', time: '14:15', endTime: '15:15', stage: 'Forest Stage', name: 'Zebrahead' },
-  { id: 'so8', day: 'Sonntag', time: '14:15', endTime: '15:15', stage: 'Mountain Stage', name: 'Vicky' },
-  { id: 'so9', day: 'Sonntag', time: '15:00', endTime: '16:00', stage: 'River Stage', name: 'The Beaches' },
-  { id: 'so10', day: 'Sonntag', time: '16:00', endTime: '17:00', stage: 'Forest Stage', name: 'The Butcher Sisters' },
-  { id: 'so11', day: 'Sonntag', time: '16:00', endTime: '17:00', stage: 'Mountain Stage', name: 'Filow' },
-  { id: 'so12', day: 'Sonntag', time: '16:45', endTime: '17:45', stage: 'River Stage', name: 'Clueso' },
-  { id: 'so13', day: 'Sonntag', time: '17:45', endTime: '19:00', stage: 'Forest Stage', name: 'A Day To Remember' },
-  { id: 'so14', day: 'Sonntag', time: '17:45', endTime: '19:00', stage: 'Mountain Stage', name: 'Levin Liam' },
-  { id: 'so15', day: 'Sonntag', time: '18:30', endTime: '19:45', stage: 'River Stage', name: 'Empire Of The Sun' },
-  { id: 'so16', day: 'Sonntag', time: '19:45', endTime: '21:00', stage: 'Mountain Stage', name: 'BHZ' },
-  { id: 'so17', day: 'Sonntag', time: '20:00', endTime: '21:15', stage: 'Forest Stage', name: 'Halsey' },
-  { id: 'so18', day: 'Sonntag', time: '21:00', endTime: '22:30', stage: 'River Stage', name: 'Provinz' },
-  { id: 'so19', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Forest Stage', name: 'Billy Talent' }
+  { id: 'so1', day: 'Sonntag', time: '10:30', endTime: '12:00', stage: 'Wild Coast Stage', name: 'Der Spiegel Live' },
+  { id: 'so2', day: 'Sonntag', time: '12:00', endTime: '12:30', stage: 'Forest Stage', name: 'Ecca Vandal' },
+  { id: 'so3', day: 'Sonntag', time: '12:00', endTime: '12:30', stage: 'Mountain Stage', name: 'Delilah Bon' },
+  { id: 'so4', day: 'Sonntag', time: '12:30', endTime: '13:00', stage: 'River Stage', name: 'Unpeople' },
+  { id: 'so5', day: 'Sonntag', time: '12:30', endTime: '13:00', stage: 'Wild Coast Stage', name: 'Boviy' },
+  { id: 'so6', day: 'Sonntag', time: '13:00', endTime: '13:45', stage: 'Forest Stage', name: 'Skindred' },
+  { id: 'so7', day: 'Sonntag', time: '13:00', endTime: '13:45', stage: 'Mountain Stage', name: 'Rosmarin' },
+  { id: 'so8', day: 'Sonntag', time: '13:30', endTime: '14:15', stage: 'River Stage', name: 'Davina Michelle' },
+  { id: 'so9', day: 'Sonntag', time: '13:30', endTime: '14:15', stage: 'Wild Coast Stage', name: 'Paula Engels' },
+  { id: 'so10', day: 'Sonntag', time: '14:15', endTime: '15:15', stage: 'Forest Stage', name: 'Zebrahead' },
+  { id: 'so11', day: 'Sonntag', time: '14:15', endTime: '15:15', stage: 'Mountain Stage', name: 'Vicky' },
+  { id: 'so12', day: 'Sonntag', time: '15:00', endTime: '16:00', stage: 'River Stage', name: 'The Beaches' },
+  { id: 'so13', day: 'Sonntag', time: '15:00', endTime: '16:00', stage: 'Wild Coast Stage', name: 'Tors' },
+  { id: 'so14', day: 'Sonntag', time: '16:00', endTime: '17:00', stage: 'Forest Stage', name: 'The Butcher Sisters' },
+  { id: 'so15', day: 'Sonntag', time: '16:00', endTime: '17:00', stage: 'Mountain Stage', name: 'Filow' },
+  { id: 'so16', day: 'Sonntag', time: '16:45', endTime: '17:45', stage: 'River Stage', name: 'Clueso' },
+  { id: 'so17', day: 'Sonntag', time: '16:45', endTime: '17:45', stage: 'Wild Coast Stage', name: 'Sprints' },
+  { id: 'so18', day: 'Sonntag', time: '17:45', endTime: '18:45', stage: 'Forest Stage', name: 'A Day To Remember' },
+  { id: 'so19', day: 'Sonntag', time: '17:45', endTime: '18:45', stage: 'Mountain Stage', name: 'Levin Liam' },
+  { id: 'so20', day: 'Sonntag', time: '18:30', endTime: '19:45', stage: 'River Stage', name: 'Empire Of The Sun' },
+  { id: 'so21', day: 'Sonntag', time: '18:45', endTime: '19:45', stage: 'Wild Coast Stage', name: 'Leony' },
+  { id: 'so22', day: 'Sonntag', time: '19:45', endTime: '21:00', stage: 'Mountain Stage', name: 'BHZ' },
+  { id: 'so23', day: 'Sonntag', time: '20:00', endTime: '21:00', stage: 'Forest Stage', name: 'Halsey' },
+  { id: 'so24', day: 'Sonntag', time: '20:45', endTime: '22:15', stage: 'Wild Coast Stage', name: 'Boys Noize' },
+  { id: 'so25', day: 'Sonntag', time: '21:00', endTime: '22:30', stage: 'River Stage', name: 'Provinz' },
+  { id: 'so26', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Forest Stage', name: 'Billy Talent' },
+  { id: 'so27', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Modeselektor' }
 ];
 
 // Helper: Konvertiert Zeit ("15:30") in Minuten für sauberes Sortieren. 
@@ -147,7 +166,8 @@ export default function App() {
   const [inputName, setInputName] = useState('');
   const [activeDay, setActiveDay] = useState('Freitag');
   const [activeStage, setActiveStage] = useState('Alle');
-  const [currentTab, setCurrentTab] = useState('timetable'); // 'timetable' oder 'myplan'
+  const [currentTab, setCurrentTab] = useState('timetable'); // 'timetable', 'myplan' oder 'crew'
+  const [selectedCrewMember, setSelectedCrewMember] = useState(null);
   const [now, setNow] = useState(new Date());
   const [allVotes, setAllVotes] = useState({}); // Struktur: { "Max": { "fr1": "definitely", ... } }
   const [expandedAct, setExpandedAct] = useState(null);
@@ -239,12 +259,18 @@ export default function App() {
     }
 
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'userVotes', userName);
-    // { merge: true } entfernt! So überschreibt Firebase das Dokument komplett 
-    // und löscht die Einträge auch wirklich aus der Datenbank.
-    await setDoc(docRef, {
-      userName: userName,
-      votes: currentUserVotes
-    });
+    
+    // Prüfen, ob der Nutzer überhaupt noch Votes hat
+    if (Object.keys(currentUserVotes).length === 0) {
+      // Wenn die Liste leer ist, löschen wir den Nutzer komplett aus der Datenbank
+      await deleteDoc(docRef);
+    } else {
+      // Ansonsten speichern wir die aktualisierte Liste
+      await setDoc(docRef, {
+        userName: userName,
+        votes: currentUserVotes
+      });
+    }
   };
 
   // Hilfsfunktion: Berechne wer bei einem Act dabei ist
@@ -382,6 +408,21 @@ export default function App() {
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <CalendarDays className="text-emerald-500" size={20} />
                 Mein Terminkalender
+              </h2>
+            </div>
+          )}
+
+          {currentTab === 'crew' && (
+            <div className="pb-2 flex items-center gap-2">
+              {selectedCrewMember ? (
+                <button onClick={() => setSelectedCrewMember(null)} className="text-zinc-400 hover:text-white transition-colors p-1 -ml-1">
+                  <ArrowLeft size={20} />
+                </button>
+              ) : (
+                <Users className="text-emerald-500" size={20} />
+              )}
+              <h2 className="text-lg font-bold text-white">
+                {selectedCrewMember ? `Plan von ${selectedCrewMember}` : 'Crew Übersicht'}
               </h2>
             </div>
           )}
@@ -698,6 +739,193 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* --- VIEW: CREW --- */}
+        {currentTab === 'crew' && !selectedCrewMember && (
+          <div className="space-y-3">
+            {Object.keys(allVotes).length === 0 ? (
+              <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                <Users className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
+                <p className="text-zinc-400 font-medium">Bisher hat sich noch niemand eingetragen.</p>
+              </div>
+            ) : (
+              Object.entries(allVotes)
+                .sort(([nameA], [nameB]) => nameA.localeCompare(nameB))
+                .map(([name, votes]) => {
+                  const voteCount = Object.keys(votes).length;
+                  return (
+                    <div 
+                      key={name} 
+                      onClick={() => setSelectedCrewMember(name)} 
+                      className="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl flex justify-between items-center cursor-pointer hover:border-emerald-500/50 hover:bg-zinc-900 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-inner ${name === userName ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-emerald-500'}`}>
+                          {name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className={`font-bold ${name === userName ? 'text-emerald-400' : 'text-white'}`}>
+                          {name} {name === userName && '(Du)'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800/50">
+                        <span>{voteCount} Acts</span>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+        )}
+
+        {currentTab === 'crew' && selectedCrewMember && (
+          <div className="space-y-8">
+            {(() => {
+              const friendVotes = allVotes[selectedCrewMember] || {};
+              const friendActs = SORTED_ACTS.filter(act => friendVotes[act.id]);
+              const friendOverlaps = getOverlaps(friendActs);
+
+              if (friendActs.length === 0) {
+                return (
+                  <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                    <CalendarDays className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
+                    <p className="text-zinc-400 font-medium">{selectedCrewMember} hat noch keine Acts ausgewählt.</p>
+                  </div>
+                );
+              }
+
+              return days.map(day => {
+                const dayActs = friendActs.filter(a => a.day === day);
+                if (dayActs.length === 0) return null;
+
+                return (
+                  <div key={day} className="relative">
+                    <h3 className="text-xl font-black text-white mb-4 sticky top-[70px] bg-zinc-950/90 backdrop-blur-sm py-2 z-10 border-b border-zinc-800/50">
+                      {day}
+                    </h3>
+                    <div className="space-y-4 pl-2">
+                      {dayActs.map((act) => {
+                        const startMins = timeToMinutes(act.time);
+                        const endMins = timeToMinutes(act.endTime);
+                        const isToday = currentDayString === act.day;
+                        const isLiveNow = isToday && currentMinutes >= startMins && currentMinutes <= endMins;
+                        const isPast = isToday && currentMinutes > endMins;
+                        
+                        const hasOverlap = friendOverlaps.has(act.id);
+                        const voteStatus = friendVotes[act.id];
+                        const isExpanded = expandedAct === act.id;
+                        const attendees = getActAttendees(act.id);
+                        const totalAttendees = attendees.definitely.length + attendees.ifFits.length;
+                        
+                        const myVote = myVotes[act.id];
+
+                        return (
+                          <div key={act.id} className="relative flex gap-4">
+                            {/* Timeline Line */}
+                            <div className="absolute left-[29px] top-8 bottom-[-24px] w-0.5 bg-zinc-800 last:hidden"></div>
+                            
+                            {/* Time Block */}
+                            <div className="flex flex-col items-end min-w-[60px] pt-1 z-10 bg-zinc-950">
+                              <span className={`text-base font-black ${isPast ? 'text-zinc-600' : 'text-zinc-200'}`}>{act.time}</span>
+                              <span className="text-xs font-medium text-zinc-600">{act.endTime}</span>
+                            </div>
+
+                            {/* Act Card */}
+                            <div className={`flex-1 rounded-xl border z-10 transition-all ${
+                              isLiveNow ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
+                              isPast ? 'border-zinc-800/50 bg-zinc-900/30 opacity-60' :
+                              'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700'
+                            }`}>
+                              <div 
+                                className="p-4 cursor-pointer"
+                                onClick={() => setExpandedAct(isExpanded ? null : act.id)}
+                              >
+                                <div className="flex justify-between items-start mb-1">
+                                  <h4 className={`text-lg font-bold leading-tight ${isPast ? 'text-zinc-400' : 'text-white'}`}>
+                                    {act.name}
+                                  </h4>
+                                  <div className="flex items-center gap-2">
+                                    {isLiveNow && (
+                                      <span className="bg-emerald-500 text-zinc-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                        Jetzt
+                                      </span>
+                                    )}
+                                    {isExpanded ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3 text-xs font-medium text-zinc-400 mb-3">
+                                  <span className="flex items-center gap-1">
+                                    <MapPin size={12} className={
+                                      act.stage === 'Forest Stage' ? 'text-green-400' :
+                                      act.stage === 'River Stage' ? 'text-blue-400' :
+                                      act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'
+                                    } />
+                                    {act.stage}
+                                  </span>
+                                  {totalAttendees > 1 && (
+                                    <span className="flex items-center gap-1 ml-auto bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300">
+                                      <Users size={12} /> {totalAttendees}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/50">
+                                  <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                                    voteStatus === 'definitely' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-500'
+                                  }`}>
+                                    {voteStatus === 'definitely' ? 'Auf jeden Fall' : 'Nur wenns passt'}
+                                  </span>
+                                  
+                                  {myVote && selectedCrewMember !== userName && (
+                                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
+                                      <Check size={12} />
+                                      Du bist auch da!
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Expandable Crew Status */}
+                              {isExpanded && (
+                                <div className="px-4 pb-4 pt-2 border-t border-zinc-800/50 bg-zinc-900/80">
+                                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
+                                  {totalAttendees <= 1 ? (
+                                    <p className="text-sm text-zinc-500 italic">Noch niemand sonst eingetragen.</p>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {attendees.definitely.length > 0 && (
+                                        <div className="flex items-start gap-2 text-sm">
+                                          <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+                                          <div className="text-zinc-300">
+                                            <span className="font-semibold text-emerald-400">Dabei: </span>
+                                            {attendees.definitely.join(', ')}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {attendees.ifFits.length > 0 && (
+                                        <div className="flex items-start gap-2 text-sm">
+                                          <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
+                                          <div className="text-zinc-400">
+                                            <span className="font-semibold text-yellow-500">Vielleicht: </span>
+                                            {attendees.ifFits.join(', ')}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
       </main>
 
       {/* Bottom Navigation */}
@@ -723,6 +951,15 @@ export default function App() {
             {myOverlaps.size > 0 && currentTab !== 'myplan' && (
               <span className="absolute top-3 right-[calc(50%-20px)] w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-zinc-900"></span>
             )}
+          </button>
+          <button 
+            onClick={() => { setCurrentTab('crew'); setSelectedCrewMember(null); }}
+            className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${
+              currentTab === 'crew' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <Users size={20} />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Crew</span>
           </button>
         </div>
       </nav>
