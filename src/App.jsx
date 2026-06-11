@@ -239,10 +239,12 @@ export default function App() {
     }
 
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'userVotes', userName);
+    // { merge: true } entfernt! So überschreibt Firebase das Dokument komplett 
+    // und löscht die Einträge auch wirklich aus der Datenbank.
     await setDoc(docRef, {
       userName: userName,
       votes: currentUserVotes
-    }, { merge: true });
+    });
   };
 
   // Hilfsfunktion: Berechne wer bei einem Act dabei ist
@@ -630,6 +632,34 @@ export default function App() {
                               {/* Expandable Crew Status */}
                               {isExpanded && (
                                 <div className="px-4 pb-4 pt-2 border-t border-zinc-800/50 bg-zinc-900/80">
+                                  <div className="mb-5">
+                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }}
+                                        className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                                          voteStatus === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                                        }`}
+                                      >
+                                        {voteStatus === 'definitely' && <Check size={16} />} Auf jeden Fall!
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }}
+                                        className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                                          voteStatus === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                                        }`}
+                                      >
+                                        {voteStatus === 'if-fits' && <Check size={16} />} Nur wenns passt
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }}
+                                        className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all"
+                                      >
+                                        Löschen
+                                      </button>
+                                    </div>
+                                  </div>
+
                                   <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
                                   {totalAttendees <= 1 ? (
                                     <p className="text-sm text-zinc-500 italic">Außer dir noch niemand eingetragen.</p>
