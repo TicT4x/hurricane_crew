@@ -94,7 +94,7 @@ const HURRICANE_ACTS = [
   { id: 'sa31', day: 'Samstag', time: '23:15', endTime: '00:30', stage: 'Mountain Stage', name: 'SSIO' },
   { id: 'sa32', day: 'Samstag', time: '23:30', endTime: '01:00', stage: 'Wild Coast Stage', name: 'David Puentez' },
   { id: 'sa33', day: 'Samstag', time: '00:30', endTime: '02:00', stage: 'River Stage', name: 'Finch' },
-  { id: 'sa34', day: 'Samstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique (DJ)' }, // <-- Komma hinzugefügt
+  { id: 'sa34', day: 'Samstag', time: '01:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique (DJ)' }, // <-- Komma hinzugefügt
   
 
   // Sonntag
@@ -125,7 +125,7 @@ const HURRICANE_ACTS = [
   { id: 'so25', day: 'Sonntag', time: '21:00', endTime: '22:30', stage: 'River Stage', name: 'Provinz' },
   { id: 'so26', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Forest Stage', name: 'Billy Talent' },
   { id: 'so27', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Modeselektor' },
-  { id: 'so28', day: 'Sonntag', time: '02:00', endTime: '03:00', stage: 'Wild Coast Stage', name: 'Steve Clash (DJ)' },
+  { id: 'so28', day: 'Sonntag', time: '00:00', endTime: '03:00', stage: 'Wild Coast Stage', name: 'Steve Clash (DJ)' },
 ];
 
 const timeToMinutes = (timeStr) => {
