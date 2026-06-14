@@ -423,8 +423,8 @@ export default function App() {
             <p className="text-zinc-500 font-medium">Du hast für {dayString} noch keine Acts ausgewählt.</p>
           </div>
         ) : (
-          <div className="-mx-4 sm:mx-0 border-y sm:border sm:rounded-2xl border-zinc-800/60 bg-zinc-950 sm:bg-zinc-900/30">
-            {/* w-full statt min-w-[700px] verhindert seitliches Scrollen */}
+          <div className="w-full border-y sm:border sm:rounded-2xl border-zinc-800/60 bg-zinc-950 sm:bg-zinc-900/30 overflow-hidden">
+            {/* w-full verhindert seitliches Scrollen absolut zuverlässig */}
             <div className="w-full flex relative" style={{ height: `${totalGridMinutes * PIXELS_PER_MINUTE + 60}px` }}>
               
               {/* Zeit-Achse (Y-Achse) */}
@@ -522,7 +522,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24 font-sans">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24 font-sans overflow-x-hidden">
       <style dangerouslySetInnerHTML={{__html: `
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
