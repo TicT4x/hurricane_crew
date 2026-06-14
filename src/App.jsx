@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc } from 'firebase/firestore';
-import { Clock, MapPin, User, Check, Calendar, Users, ChevronDown, ChevronUp, LogOut, Filter, List, CalendarDays, ArrowLeft, Search, X, Columns, Settings, Lock, Shield } from 'lucide-react';
+import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc, getDoc } from 'firebase/firestore';
+import { Clock, MapPin, User, Check, Calendar, Users, ChevronDown, ChevronUp, LogOut, Filter, List, CalendarDays, ArrowLeft, Search, X, Columns, Settings, Lock, Shield, Eye, Trash2 } from 'lucide-react';
 
 // --- FIREBASE INITIALISIERUNG ---
-// Deine eigenen Firebase-Daten für das finale Hosting:
 const userFirebaseConfig = {
   apiKey: "AIzaSyCNPIf1rBmjgf-ETdCaGuehPmcOyyIHl0U",
   authDomain: "hurricane-2026-40d21.firebaseapp.com",
@@ -15,7 +14,6 @@ const userFirebaseConfig = {
   appId: "1:608765420460:web:815ea3902f2856c2615009"
 };
 
-// Weiche: Nutzt die Vorschau-Datenbank hier im Editor, aber deine eigene Datenbank beim Hosting!
 const isCanvas = typeof __firebase_config !== 'undefined';
 const firebaseConfig = isCanvas ? JSON.parse(__firebase_config) : userFirebaseConfig;
 
@@ -126,7 +124,6 @@ const HURRICANE_ACTS = [
   { id: 'so27', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Modeselektor' }
 ];
 
-// Helper: Konvertiert Zeit ("15:30") in Minuten für sauberes Sortieren. 
 const timeToMinutes = (timeStr) => {
   const [hours, minutes] = timeStr.split(':').map(Number);
   let total = hours * 60 + minutes;
@@ -134,7 +131,6 @@ const timeToMinutes = (timeStr) => {
   return total;
 };
 
-// Eigene ID Generierung
 const generateId = () => Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
 
 const SORTED_ACTS = [...HURRICANE_ACTS].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
@@ -144,6 +140,10 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   
+  // Admin State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
   // States für Multi-Crew System
   const [allCrews, setAllCrews] = useState(null);
   const [activeCrewId, setActiveCrewId] = useState('');
@@ -164,7 +164,6 @@ export default function App() {
   // Settings Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Auth Initialisierung
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       if (authUser) setUser(authUser);
@@ -188,7 +187,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Lade alle Crews, um Logins und Crew-Erstellung zu validieren
   useEffect(() => {
     if (!user) return;
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'crews');
@@ -200,21 +198,19 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  // Lade lokale Zugangsdaten aus dem Cache
   useEffect(() => {
     const storedCrewId = localStorage.getItem('hurricaneCrewId');
     const storedName = localStorage.getItem('hurricaneName');
+    const storedIsAdmin = localStorage.getItem('hurricaneIsAdmin');
+    
+    if (storedIsAdmin === 'true') setIsAdmin(true);
     if (storedCrewId) setActiveCrewId(storedCrewId);
     if (storedName) setUserName(storedName);
   }, []);
 
-  // Lade die Votes NUR von der ausgewählten Crew
   useEffect(() => {
     if (!user || !activeCrewId) return;
-    
-    // MIGRATION: Die alte "Aachen" Crew liegt auf 'userVotes'. Alle neuen liegen auf 'userVotes_[ID]'
     const votesCollectionName = activeCrewId === 'legacy_aachen' ? 'userVotes' : `userVotes_${activeCrewId}`;
-    
     const q = collection(db, 'artifacts', appId, 'public', 'data', votesCollectionName);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = {};
@@ -261,17 +257,22 @@ export default function App() {
     return { definitely, ifFits };
   };
 
-  // Logout von App (Benutzer wechseln)
   const handleUserLogout = () => {
     setUserName('');
     localStorage.removeItem('hurricaneName');
   };
 
-  // Logout von Crew (Crew wechseln)
   const handleCrewLogout = () => {
     setActiveCrewId('');
     localStorage.removeItem('hurricaneCrewId');
     setIsSettingsOpen(false);
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    localStorage.removeItem('hurricaneIsAdmin');
+    setActiveCrewId('');
+    setUserName('');
   };
 
   const currentCrew = allCrews?.find(c => c.id === activeCrewId);
@@ -287,16 +288,25 @@ export default function App() {
     );
   }
 
-  // SCREEN 1: Crew Login oder Erstellen
-  if (!currentCrew) {
-    return <CrewLoginScreen allCrews={allCrews} setActiveCrewId={setActiveCrewId} db={db} appId={appId} />;
+  // SCREEN: Admin Login
+  if (showAdminLogin) {
+    return <AdminLoginScreen db={db} appId={appId} setIsAdmin={setIsAdmin} setShowAdminLogin={setShowAdminLogin} />;
   }
 
-  // SCREEN 2: Benutzername eingeben
+  // SCREEN: Admin Dashboard
+  if (isAdmin && !activeCrewId) {
+    return <AdminDashboard db={db} appId={appId} allCrews={allCrews} setActiveCrewId={setActiveCrewId} setUserName={setUserName} onLogout={handleAdminLogout} />;
+  }
+
+  // SCREEN: Crew Login oder Erstellen
+  if (!currentCrew) {
+    return <CrewLoginScreen allCrews={allCrews} setActiveCrewId={setActiveCrewId} db={db} appId={appId} setShowAdminLogin={setShowAdminLogin} />;
+  }
+
+  // SCREEN: Benutzername eingeben
   if (!userName) {
     return <UserLoginScreen setUserName={setUserName} currentCrew={currentCrew} onBack={handleCrewLogout} />;
   }
-
 
   // --- MAIN APP RENDER ---
   const days = ['Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
@@ -510,6 +520,11 @@ export default function App() {
               <span className="text-emerald-500 truncate max-w-[150px]">{currentCrew.name}</span> Crew
             </h1>
             <div className="flex items-center gap-2 sm:gap-3">
+              {isAdmin && (
+                <button onClick={() => { setActiveCrewId(''); localStorage.removeItem('hurricaneCrewId'); }} className="text-emerald-500 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors border border-emerald-500/20 mr-2 flex items-center gap-1">
+                  <Shield size={14}/> Admin Exit
+                </button>
+              )}
               <div className="text-sm text-zinc-400 flex items-center gap-1 bg-zinc-800/50 px-2 sm:px-3 py-1.5 rounded-full">
                 <User size={14} className="text-emerald-500"/> 
                 <span className="font-medium text-zinc-200 hidden sm:inline">{userName}</span>
@@ -947,7 +962,7 @@ export default function App() {
 // --- SUB-COMPONENTS ---
 
 // Screen 1: Crew Login oder Erstellen
-function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId }) {
+function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId, setShowAdminLogin }) {
   const [isCreating, setIsCreating] = useState(false);
   const [crewName, setCrewName] = useState('');
   const [password, setPassword] = useState('');
@@ -964,7 +979,6 @@ function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId }) {
         return;
       }
       
-      // MIGRATION: Wenn "Aachen" erstellt wird, weisen wir die alte legacy ID zu
       const newId = trimmedName.toLowerCase() === 'aachen' ? 'legacy_aachen' : generateId();
       try {
         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'crews', newId), { 
@@ -993,7 +1007,7 @@ function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId }) {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 relative">
       <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
         <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
           <Shield className="text-zinc-950 w-8 h-8" />
@@ -1024,6 +1038,15 @@ function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId }) {
           </button>
         </form>
       </div>
+
+      {/* Secret Admin Entry */}
+      <button 
+        onClick={() => setShowAdminLogin(true)} 
+        className="absolute bottom-4 right-4 text-zinc-900 hover:text-zinc-700 transition-colors"
+        title="Hidden Admin Area"
+      >
+        <Lock size={14} />
+      </button>
     </div>
   );
 }
@@ -1044,12 +1067,7 @@ function UserLoginScreen({ setUserName, currentCrew, onBack }) {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
-        {/* Zurück-Button oben links */}
-        <button 
-          onClick={onBack} 
-          className="absolute top-6 left-6 text-zinc-500 hover:text-white transition-colors"
-          title="Andere Crew wählen"
-        >
+        <button onClick={onBack} className="absolute top-6 left-6 text-zinc-500 hover:text-white transition-colors" title="Andere Crew wählen">
           <ArrowLeft size={24} />
         </button>
 
@@ -1081,7 +1099,6 @@ function CrewSettingsModal({ currentCrew, allCrews, db, appId, onClose, onLogout
     setError('');
     const trimmedName = newName.trim();
     
-    // Prüfen, ob eine ANDERE Crew diesen Namen schon hat
     if (trimmedName.toLowerCase() !== currentCrew.name.toLowerCase() && 
         allCrews.some(c => c.id !== currentCrew.id && c.name.toLowerCase() === trimmedName.toLowerCase())) {
       setError('Dieser Name wird bereits von einer anderen Crew genutzt.');
@@ -1130,6 +1147,193 @@ function CrewSettingsModal({ currentCrew, allCrews, db, appId, onClose, onLogout
           <p className="text-xs text-zinc-500 text-center mt-3">Du verlässt die aktuelle Crew und kehrst zur Startseite zurück.</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// --- ADMIN COMPONENTS ---
+
+function AdminLoginScreen({ db, appId, setIsAdmin, setShowAdminLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    try {
+      // Admin config laden oder falls nicht existent mit default ("til"/"17092002") erstellen
+      const adminDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'adminSettings', 'config');
+      let adminSnap = await getDoc(adminDocRef);
+      
+      let adminData;
+      if (!adminSnap.exists()) {
+        adminData = { username: 'til', password: '17092002' };
+        await setDoc(adminDocRef, adminData);
+      } else {
+        adminData = adminSnap.data();
+      }
+
+      if (username === adminData.username && password === adminData.password) {
+        setIsAdmin(true);
+        localStorage.setItem('hurricaneIsAdmin', 'true');
+        setShowAdminLogin(false);
+      } else {
+        setError('Ungültige Admin-Anmeldedaten.');
+      }
+    } catch(err) {
+      setError('Verbindungsfehler.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 relative">
+      <button onClick={() => setShowAdminLogin(false)} className="absolute top-6 left-6 text-zinc-500 hover:text-white">
+        <ArrowLeft size={24} />
+      </button>
+
+      <div className="max-w-md w-full bg-zinc-900 border border-emerald-500/30 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Lock className="text-emerald-500 w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-black text-center mb-2 text-white">System Admin</h1>
+        <p className="text-zinc-400 text-center mb-8">Eingeschränkter Zugriff.</p>
+        
+        <form onSubmit={handleAdminLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Admin User</label>
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-white outline-none" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Passwort</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-white outline-none" required />
+          </div>
+          {error && <p className="text-red-400 text-sm font-bold bg-red-500/10 p-3 rounded-lg">{error}</p>}
+          <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-colors mt-4">
+            System betreten
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AdminDashboard({ db, appId, allCrews, setActiveCrewId, setUserName, onLogout }) {
+  const [showSettings, setShowSettings] = useState(false);
+
+  const enterCrew = (crewId) => {
+    setActiveCrewId(crewId);
+    setUserName('*Admin*'); // Special username so they don't have to login
+    localStorage.setItem('hurricaneCrewId', crewId);
+    localStorage.setItem('hurricaneName', '*Admin*');
+  };
+
+  const deleteCrew = async (crewId) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'crews', crewId));
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 sm:p-8">
+      <div className="max-w-4xl mx-auto">
+        <header className="flex justify-between items-center mb-8 border-b border-zinc-800 pb-4">
+          <div>
+            <h1 className="text-2xl font-black text-emerald-500 flex items-center gap-2"><Shield size={24}/> Admin Dashboard</h1>
+            <p className="text-zinc-400 text-sm mt-1">Aktuell sind {allCrews?.length || 0} Crews registriert.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowSettings(true)} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300" title="Admin Einstellungen"><Settings size={20}/></button>
+            <button onClick={onLogout} className="p-2 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-500" title="Logout"><LogOut size={20}/></button>
+          </div>
+        </header>
+
+        {showSettings ? (
+          <AdminSettings db={db} appId={appId} onClose={() => setShowSettings(false)} />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {allCrews?.map(crew => (
+              <AdminCrewCard key={crew.id} crew={crew} onEnter={enterCrew} onDelete={deleteCrew} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminCrewCard({ crew, onEnter, onDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between">
+      <div className="mb-4">
+        <h3 className="text-lg font-bold text-white truncate" title={crew.name}>{crew.name}</h3>
+        <p className="text-xs text-zinc-500 font-mono mt-1">ID: {crew.id}</p>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-xs bg-zinc-950 px-2 py-1 rounded text-zinc-400 border border-zinc-800">Passwort: <span className="font-mono text-zinc-200">{crew.password}</span></span>
+        </div>
+      </div>
+      
+      <div className="flex gap-2 mt-auto pt-4 border-t border-zinc-800/50">
+        <button onClick={() => onEnter(crew.id)} className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold py-2 rounded-lg text-sm transition-colors flex justify-center items-center gap-1">
+          <Eye size={16}/> Anschauen
+        </button>
+        
+        {confirmDelete ? (
+          <button onClick={() => onDelete(crew.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-lg text-sm transition-colors flex justify-center items-center">
+            Wirklich?
+          </button>
+        ) : (
+          <button onClick={() => setConfirmDelete(true)} className="px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors flex justify-center items-center" title="Crew löschen">
+            <Trash2 size={16}/>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminSettings({ db, appId, onClose }) {
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'adminSettings', 'config'), {
+        username: newUsername,
+        password: newPassword
+      });
+      setMessage('Zugangsdaten erfolgreich aktualisiert!');
+    } catch(err) {
+      setMessage('Fehler beim Speichern.');
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-lg font-bold text-white">Admin-Login ändern</h2>
+        <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={20}/></button>
+      </div>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Neuer Username</label>
+          <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none" required />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Neues Passwort</label>
+          <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none" required />
+        </div>
+        {message && <p className="text-emerald-400 text-sm font-bold bg-emerald-500/10 p-2 rounded-lg">{message}</p>}
+        <button type="submit" className="w-full bg-emerald-500 text-zinc-950 font-bold py-2 rounded-xl">Speichern</button>
+      </form>
     </div>
   );
 }
