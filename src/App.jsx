@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc } from 'firebase/firestore';
-import { Clock, MapPin, User, Check, Calendar, Users, ChevronDown, ChevronUp, LogOut, Filter, List, CalendarDays, ArrowLeft, Search, X, Columns } from 'lucide-react';
+import { Clock, MapPin, User, Check, Calendar, Users, ChevronDown, ChevronUp, LogOut, Filter, List, CalendarDays, ArrowLeft, Search, X, Columns, Settings, Lock, Shield } from 'lucide-react';
 
 // --- FIREBASE INITIALISIERUNG ---
 // Deine eigenen Firebase-Daten für das finale Hosting:
@@ -25,7 +25,6 @@ const db = getFirestore(app);
 const appId = isCanvas && typeof __app_id !== 'undefined' ? __app_id : 'hurricane-crew-2026';
 
 // --- HURRICANE 2026 TIMETABLE DATEN ---
-// Die echten Zeiten & Stages für 2026 inkl. realistischer Endzeiten
 const HURRICANE_ACTS = [
   // Donnerstag
   { id: 'do1', day: 'Donnerstag', time: '17:30', endTime: '18:30', stage: 'Wild Coast Stage', name: 'Hansemädchen' },
@@ -34,6 +33,7 @@ const HURRICANE_ACTS = [
   { id: 'do4', day: 'Donnerstag', time: '21:30', endTime: '22:30', stage: 'Wild Coast Stage', name: 'Paula Carolina' },
   { id: 'do5', day: 'Donnerstag', time: '23:00', endTime: '00:15', stage: 'Wild Coast Stage', name: 'Juli' },
   { id: 'do6', day: 'Donnerstag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Disarstar' },
+  { id: 'do7', day: 'Donnerstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique' },
 
   // Freitag
   { id: 'fr1', day: 'Freitag', time: '15:00', endTime: '15:30', stage: 'Forest Stage', name: '#HURRICANESWIMTEAM' },
@@ -88,7 +88,7 @@ const HURRICANE_ACTS = [
   { id: 'sa24', day: 'Samstag', time: '19:30', endTime: '20:30', stage: 'River Stage', name: 'Wolf Alice' },
   { id: 'sa25', day: 'Samstag', time: '19:45', endTime: '20:45', stage: 'Wild Coast Stage', name: 'Orville Peck' },
   { id: 'sa26', day: 'Samstag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'Papa Roach' },
-  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '21:45', stage: 'Mountain Stage', name: 'Edwin Rosen' },
+  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '22:00', stage: 'Mountain Stage', name: 'Edwin Rosen' },
   { id: 'sa28', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Florence + The Machine' },
   { id: 'sa29', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'Wild Coast Stage', name: 'Tinlicker' },
   { id: 'sa30', day: 'Samstag', time: '22:55', endTime: '00:30', stage: 'Forest Stage', name: 'Twenty One Pilots' },
@@ -134,13 +134,21 @@ const timeToMinutes = (timeStr) => {
   return total;
 };
 
+// Eigene ID Generierung
+const generateId = () => Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+
 const SORTED_ACTS = [...HURRICANE_ACTS].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 const PIXELS_PER_MINUTE = 2.5;
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  
+  // States für Multi-Crew System
+  const [allCrews, setAllCrews] = useState(null);
+  const [activeCrewId, setActiveCrewId] = useState('');
+  
   const [userName, setUserName] = useState('');
-  const [inputName, setInputName] = useState('');
   const [activeDay, setActiveDay] = useState('Freitag');
   const [activeStage, setActiveStage] = useState('Alle');
   const [viewMode, setViewMode] = useState('list');
@@ -153,6 +161,10 @@ export default function App() {
   const [expandedAct, setExpandedAct] = useState(null);
   const [modalActId, setModalActId] = useState(null);
 
+  // Settings Modal State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Auth Initialisierung
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       if (authUser) setUser(authUser);
@@ -168,20 +180,42 @@ export default function App() {
       } catch (err) {
         console.error("Auth Error", err);
         setUser({ uid: 'fallback-test-user' });
+      } finally {
+        setAuthLoading(false);
       }
     };
     initAuth();
     return () => unsubscribe();
   }, []);
 
+  // Lade alle Crews, um Logins und Crew-Erstellung zu validieren
   useEffect(() => {
+    if (!user) return;
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'crews');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const crews = [];
+      snapshot.forEach(doc => crews.push({ id: doc.id, ...doc.data() }));
+      setAllCrews(crews);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Lade lokale Zugangsdaten aus dem Cache
+  useEffect(() => {
+    const storedCrewId = localStorage.getItem('hurricaneCrewId');
     const storedName = localStorage.getItem('hurricaneName');
+    if (storedCrewId) setActiveCrewId(storedCrewId);
     if (storedName) setUserName(storedName);
   }, []);
 
+  // Lade die Votes NUR von der ausgewählten Crew
   useEffect(() => {
-    if (!user) return;
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'userVotes');
+    if (!user || !activeCrewId) return;
+    
+    // MIGRATION: Die alte "Aachen" Crew liegt auf 'userVotes'. Alle neuen liegen auf 'userVotes_[ID]'
+    const votesCollectionName = activeCrewId === 'legacy_aachen' ? 'userVotes' : `userVotes_${activeCrewId}`;
+    
+    const q = collection(db, 'artifacts', appId, 'public', 'data', votesCollectionName);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = {};
       snapshot.forEach(doc => {
@@ -190,30 +224,15 @@ export default function App() {
       setAllVotes(data);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, activeCrewId]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (inputName.trim().length > 0) {
-      const nameToSave = inputName.trim();
-      setUserName(nameToSave);
-      localStorage.setItem('hurricaneName', nameToSave);
-    }
-  };
-
-  const handleLogout = () => {
-    setUserName('');
-    localStorage.removeItem('hurricaneName');
-    setInputName('');
-  };
-
   const handleVote = async (actId, status) => {
-    if (!user || !userName) return;
+    if (!user || !userName || !activeCrewId) return;
     const currentUserVotes = allVotes[userName] ? { ...allVotes[userName] } : {};
     
     if (status === 'remove') {
@@ -222,7 +241,9 @@ export default function App() {
       currentUserVotes[actId] = status;
     }
 
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'userVotes', userName);
+    const votesCollectionName = activeCrewId === 'legacy_aachen' ? 'userVotes' : `userVotes_${activeCrewId}`;
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', votesCollectionName, userName);
+    
     if (Object.keys(currentUserVotes).length === 0) {
       await deleteDoc(docRef);
     } else {
@@ -240,134 +261,44 @@ export default function App() {
     return { definitely, ifFits };
   };
 
-  // VERBESSERTES MODAL: Zentriert & Intern Scrollbar
-  const renderActModal = () => {
-    if (!modalActId) return null;
-    const act = HURRICANE_ACTS.find(a => a.id === modalActId);
-    if (!act) return null;
-
-    const attendees = getActAttendees(act.id);
-    const totalAttendees = attendees.definitely.length + attendees.ifFits.length;
-    const myVote = (allVotes[userName] || {})[act.id] || null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setModalActId(null)}>
-        <div 
-          className="w-full max-w-lg bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95"
-          onClick={e => e.stopPropagation()} 
-        >
-          {/* Modal Header - Bleibt immer oben */}
-          <div className="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900 flex justify-between items-start shrink-0 rounded-t-2xl">
-            <div>
-              <h3 className="text-xl font-black text-white mb-1">{act.name}</h3>
-              <div className="flex items-center gap-3 text-xs font-medium text-zinc-400">
-                <span className="flex items-center gap-1">
-                  <Clock size={12} /> {act.time} - {act.endTime} Uhr
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin size={12} className={
-                    act.stage === 'Forest Stage' ? 'text-green-400' :
-                    act.stage === 'River Stage' ? 'text-blue-400' :
-                    act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'
-                  } />
-                  {act.stage}
-                </span>
-              </div>
-            </div>
-            <button onClick={() => setModalActId(null)} className="p-2 text-zinc-400 hover:text-white bg-zinc-800/50 rounded-full shrink-0 ml-4">
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Modal Content - Scrollt intern wenn zu lang */}
-          <div className="p-4 sm:p-5 bg-zinc-900/80 space-y-6 overflow-y-auto rounded-b-2xl">
-            {/* Voting */}
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={() => handleVote(act.id, 'definitely')}
-                  className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                    myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                  }`}
-                >
-                  {myVote === 'definitely' && <Check size={16} />} Auf jeden Fall!
-                </button>
-                <button 
-                  onClick={() => handleVote(act.id, 'if-fits')}
-                  className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                    myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                  }`}
-                >
-                  {myVote === 'if-fits' && <Check size={16} />} Nur wenns passt
-                </button>
-                {myVote && (
-                  <button 
-                    onClick={() => handleVote(act.id, 'remove')}
-                    className="w-full sm:w-auto py-3 sm:py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all mt-1 sm:mt-0"
-                  >
-                    Löschen
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Crew Status */}
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status ({totalAttendees})</p>
-              {totalAttendees === 0 ? (
-                <p className="text-sm text-zinc-500 italic">Noch niemand eingetragen.</p>
-              ) : (
-                <div className="space-y-2 bg-zinc-950 p-4 rounded-xl border border-zinc-800/50">
-                  {attendees.definitely.length > 0 && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
-                      <div className="text-zinc-300">
-                        <span className="font-semibold text-emerald-400">Dabei: </span>
-                        {attendees.definitely.join(', ')}
-                      </div>
-                    </div>
-                  )}
-                  {attendees.ifFits.length > 0 && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
-                      <div className="text-zinc-400">
-                        <span className="font-semibold text-yellow-500">Vielleicht: </span>
-                        {attendees.ifFits.join(', ')}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  // Logout von App (Benutzer wechseln)
+  const handleUserLogout = () => {
+    setUserName('');
+    localStorage.removeItem('hurricaneName');
   };
 
-  if (!userName) {
+  // Logout von Crew (Crew wechseln)
+  const handleCrewLogout = () => {
+    setActiveCrewId('');
+    localStorage.removeItem('hurricaneCrewId');
+    setIsSettingsOpen(false);
+  };
+
+  const currentCrew = allCrews?.find(c => c.id === activeCrewId);
+
+  // --- RENDERING VON LADEN / AUTH SCREENS ---
+  
+  if (authLoading || allCrews === null) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-            <User className="text-zinc-950 w-8 h-8" />
-          </div>
-          <h1 className="text-3xl font-black text-center mb-2 text-white">Hurricane '26</h1>
-          <p className="text-zinc-400 text-center mb-8">Gemeinsamer Timetable deiner Crew.</p>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Wie heißt du?</label>
-              <input type="text" value={inputName} onChange={(e) => setInputName(e.target.value)} placeholder="Dein Vorname / Spitzname" className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-zinc-600 outline-none transition-all" required />
-            </div>
-            <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-colors">Los geht's</button>
-          </form>
-        </div>
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-zinc-400 font-bold">Verbinde zum Festivalgelände...</p>
       </div>
     );
   }
 
+  // SCREEN 1: Crew Login oder Erstellen
+  if (!currentCrew) {
+    return <CrewLoginScreen allCrews={allCrews} setActiveCrewId={setActiveCrewId} db={db} appId={appId} />;
+  }
+
+  // SCREEN 2: Benutzername eingeben
+  if (!userName) {
+    return <UserLoginScreen setUserName={setUserName} currentCrew={currentCrew} />;
+  }
+
+
+  // --- MAIN APP RENDER ---
   const days = ['Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
   const timelineStages = ['Forest Stage', 'River Stage', 'Mountain Stage', 'Wild Coast Stage'];
   const stages = ['Alle', ...timelineStages];
@@ -393,7 +324,6 @@ export default function App() {
     </div>
   );
 
-  // VERBESSERTES TIMELINE-GRID: Nativ Edge-to-Edge & Ohne horizontales Scrollen
   const renderTimelineGrid = (dayString, actsToDisplay, showDayTitle = false) => {
     const allActsForTimelineDay = SORTED_ACTS.filter(act => act.day === dayString);
     if (allActsForTimelineDay.length === 0) return null;
@@ -423,10 +353,7 @@ export default function App() {
           </div>
         ) : (
           <div className="w-full border-y sm:border sm:rounded-2xl border-zinc-800/60 bg-zinc-950 sm:bg-zinc-900/30 overflow-hidden">
-            {/* w-full verhindert seitliches Scrollen absolut zuverlässig */}
             <div className="w-full flex relative" style={{ height: `${totalGridMinutes * PIXELS_PER_MINUTE + 60}px` }}>
-              
-              {/* Zeit-Achse (Y-Achse) */}
               <div className="w-10 sm:w-16 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-900/40 z-20 relative top-[40px]">
                 {timelineHours.map((mins) => {
                   const hourLabel = `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:00`;
@@ -439,9 +366,7 @@ export default function App() {
                 })}
               </div>
 
-              {/* Bühnen Spalten */}
               <div className="flex-1 flex relative min-w-0">
-                {/* Horizontale Gitterlinien */}
                 <div className="absolute inset-0 pointer-events-none top-[40px]">
                   {timelineHours.map((mins) => (
                     <div key={mins} className="absolute w-full border-t border-zinc-800/30" style={{ top: (mins - startHourMins) * PIXELS_PER_MINUTE }} />
@@ -456,19 +381,15 @@ export default function App() {
 
                   return (
                     <div key={stage} className="flex-1 border-r border-zinc-800/40 last:border-r-0 relative group min-w-0">
-                      {/* Spalten-Header */}
                       <div className={`h-[40px] sticky top-0 bg-zinc-900/95 backdrop-blur-md border-b-2 ${headerColor} z-30 flex items-center justify-center px-0.5 sm:px-1 overflow-hidden`}>
                         <span className="text-[8px] sm:text-[11px] font-black uppercase text-zinc-300 truncate tracking-tighter" title={stage}>{stage.replace(' Stage', '')}</span>
                       </div>
-                      
-                      {/* Spalten-Inhalt (Acts) */}
                       <div className="relative w-full h-full pt-[40px]">
                         {stageActs.map(act => {
                           const startMins = timeToMinutes(act.time);
                           const endMins = timeToMinutes(act.endTime);
                           const topPx = (startMins - startHourMins) * PIXELS_PER_MINUTE;
                           const heightPx = (endMins - startMins) * PIXELS_PER_MINUTE;
-                          
                           const myVote = myVotes[act.id];
                           const totalAttendees = getActAttendees(act.id).definitely.length + getActAttendees(act.id).ifFits.length;
                           
@@ -480,26 +401,17 @@ export default function App() {
 
                           return (
                             <div 
-                              key={act.id}
-                              onClick={() => setModalActId(act.id)}
+                              key={act.id} onClick={() => setModalActId(act.id)}
                               className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 border rounded p-0.5 sm:p-1.5 cursor-pointer transition-all overflow-hidden flex flex-col shadow-lg backdrop-blur-md ${blockClasses}`}
                               style={{ top: topPx, height: heightPx - 2 }}
                             >
-                              <span className="text-[7px] sm:text-[10px] font-bold opacity-80 mb-0.5 leading-none truncate">
-                                {act.time}-{act.endTime}
-                              </span>
-                              <span className="text-[8px] sm:text-xs font-black leading-tight overflow-hidden text-ellipsis line-clamp-2 sm:line-clamp-3">
-                                {act.name}
-                              </span>
-                              
-                              {/* Icon Badge für Crew */}
+                              <span className="text-[7px] sm:text-[10px] font-bold opacity-80 mb-0.5 leading-none truncate">{act.time}-{act.endTime}</span>
+                              <span className="text-[8px] sm:text-xs font-black leading-tight overflow-hidden text-ellipsis line-clamp-2 sm:line-clamp-3">{act.name}</span>
                               {totalAttendees > 0 && (
                                 <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 flex items-center gap-0.5 bg-black/50 px-1 rounded text-[7px] sm:text-[9px] font-bold">
                                   <Users size={8} /> {totalAttendees}
                                 </div>
                               )}
-                              
-                              {/* Vote Icons */}
                               {myVote && (
                                 <div className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1">
                                   <Check size={8} className={`sm:w-2.5 sm:h-2.5 ${myVote === 'definitely' ? 'text-emerald-400' : 'text-yellow-400'}`} />
@@ -520,6 +432,69 @@ export default function App() {
     );
   };
 
+  const renderActModal = () => {
+    if (!modalActId) return null;
+    const act = HURRICANE_ACTS.find(a => a.id === modalActId);
+    if (!act) return null;
+
+    const attendees = getActAttendees(act.id);
+    const totalAttendees = attendees.definitely.length + attendees.ifFits.length;
+    const myVote = (allVotes[userName] || {})[act.id] || null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setModalActId(null)}>
+        <div className="w-full max-w-lg bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+          <div className="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900 flex justify-between items-start shrink-0 rounded-t-2xl">
+            <div>
+              <h3 className="text-xl font-black text-white mb-1">{act.name}</h3>
+              <div className="flex items-center gap-3 text-xs font-medium text-zinc-400">
+                <span className="flex items-center gap-1"><Clock size={12} /> {act.time} - {act.endTime} Uhr</span>
+                <span className="flex items-center gap-1">
+                  <MapPin size={12} className={act.stage === 'Forest Stage' ? 'text-green-400' : act.stage === 'River Stage' ? 'text-blue-400' : act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'} />
+                  {act.stage}
+                </span>
+              </div>
+            </div>
+            <button onClick={() => setModalActId(null)} className="p-2 text-zinc-400 hover:text-white bg-zinc-800/50 rounded-full shrink-0 ml-4"><X size={18} /></button>
+          </div>
+          <div className="p-4 sm:p-5 bg-zinc-900/80 space-y-6 overflow-y-auto rounded-b-2xl">
+            <div>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => handleVote(act.id, 'definitely')} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                  {myVote === 'definitely' && <Check size={16} />} Auf jeden Fall!
+                </button>
+                <button onClick={() => handleVote(act.id, 'if-fits')} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                  {myVote === 'if-fits' && <Check size={16} />} Nur wenns passt
+                </button>
+                {myVote && <button onClick={() => handleVote(act.id, 'remove')} className="w-full sm:w-auto py-3 sm:py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all mt-1 sm:mt-0">Löschen</button>}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status ({totalAttendees})</p>
+              {totalAttendees === 0 ? <p className="text-sm text-zinc-500 italic">Noch niemand eingetragen.</p> : (
+                <div className="space-y-2 bg-zinc-950 p-4 rounded-xl border border-zinc-800/50">
+                  {attendees.definitely.length > 0 && (
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+                      <div className="text-zinc-300"><span className="font-semibold text-emerald-400">Dabei: </span>{attendees.definitely.join(', ')}</div>
+                    </div>
+                  )}
+                  {attendees.ifFits.length > 0 && (
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
+                      <div className="text-zinc-400"><span className="font-semibold text-yellow-500">Vielleicht: </span>{attendees.ifFits.join(', ')}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24 font-sans overflow-x-hidden">
       <style dangerouslySetInnerHTML={{__html: `
@@ -527,38 +502,33 @@ export default function App() {
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
+      {/* HEADER */}
       <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40 shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-xl font-black text-white flex items-center gap-2">
-              <span className="text-emerald-500">Hurricane</span> Crew
+              <span className="text-emerald-500 truncate max-w-[150px]">{currentCrew.name}</span> Crew
             </h1>
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-zinc-400 flex items-center gap-1 bg-zinc-800/50 px-3 py-1.5 rounded-full">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="text-sm text-zinc-400 flex items-center gap-1 bg-zinc-800/50 px-2 sm:px-3 py-1.5 rounded-full">
                 <User size={14} className="text-emerald-500"/> 
-                <span className="font-medium text-zinc-200">{userName}</span>
+                <span className="font-medium text-zinc-200 hidden sm:inline">{userName}</span>
               </div>
-              <button onClick={handleLogout} className="text-zinc-500 hover:text-red-400 transition-colors p-2">
-                <LogOut size={18} />
+              <button onClick={() => setIsSettingsOpen(true)} className="text-zinc-500 hover:text-white transition-colors p-2 bg-zinc-800/30 rounded-full" title="Crew Einstellungen">
+                <Settings size={16} />
+              </button>
+              <button onClick={handleUserLogout} className="text-zinc-500 hover:text-red-400 transition-colors p-2 bg-zinc-800/30 rounded-full" title="Benutzer wechseln">
+                <LogOut size={16} />
               </button>
             </div>
           </div>
           
-          {/* Umschalter nach Oben verschoben in die Toolbar */}
           {currentTab === 'timetable' && (
             <div className="mb-4 flex gap-2 items-center">
               <div className={`flex-1 flex items-center border rounded-xl overflow-hidden transition-colors ${isSearching ? 'border-emerald-500 bg-zinc-950' : 'border-zinc-800 bg-zinc-900'}`}>
                 <Search className={`ml-3 ${isSearching ? 'text-emerald-500' : 'text-zinc-500'}`} size={18} />
-                <input
-                  type="text" placeholder="Suche nach Bands..." value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setIsSearching(e.target.value.length > 0); }}
-                  className="w-full bg-transparent border-none text-white px-3 py-2.5 focus:outline-none placeholder-zinc-500"
-                />
-                {searchQuery && (
-                  <button onClick={() => { setSearchQuery(''); setIsSearching(false); }} className="p-2 mr-1 text-zinc-400 hover:text-white">
-                    <X size={18} />
-                  </button>
-                )}
+                <input type="text" placeholder="Suche nach Bands..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setIsSearching(e.target.value.length > 0); }} className="w-full bg-transparent border-none text-white px-3 py-2.5 focus:outline-none placeholder-zinc-500" />
+                {searchQuery && <button onClick={() => { setSearchQuery(''); setIsSearching(false); }} className="p-2 mr-1 text-zinc-400 hover:text-white"><X size={18} /></button>}
               </div>
               {!isSearching && viewToggleUI}
             </div>
@@ -581,10 +551,8 @@ export default function App() {
                   <button onClick={() => setSelectedCrewMember(null)} className="text-zinc-400 hover:text-white transition-colors p-1 -ml-1">
                     <ArrowLeft size={20} />
                   </button>
-                ) : (
-                  <Users className="text-emerald-500" size={20} />
-                )}
-                <h2 className="text-lg font-bold text-white">
+                ) : <Users className="text-emerald-500" size={20} />}
+                <h2 className="text-lg font-bold text-white truncate max-w-[200px]">
                   {selectedCrewMember ? `Plan von ${selectedCrewMember}` : 'Crew Übersicht'}
                 </h2>
               </div>
@@ -598,9 +566,7 @@ export default function App() {
                 {days.map(day => (
                   <button
                     key={day} onClick={() => { setActiveDay(day); setExpandedAct(null); }}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                      activeDay === day ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                    }`}
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeDay === day ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}
                   >
                     {day}
                   </button>
@@ -612,9 +578,7 @@ export default function App() {
                   {stages.map(stage => (
                     <button
                       key={stage} onClick={() => { setActiveStage(stage); setExpandedAct(null); }}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border ${
-                        activeStage === stage ? 'bg-zinc-200 text-zinc-900 border-zinc-200' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-white'
-                      }`}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border ${activeStage === stage ? 'bg-zinc-200 text-zinc-900 border-zinc-200' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-white'}`}
                     >
                       {stage === 'Alle' ? <Filter size={12} /> : null}
                       {stage}
@@ -948,6 +912,18 @@ export default function App() {
         )}
       </main>
 
+      {/* Crew Settings Modal */}
+      {isSettingsOpen && (
+        <CrewSettingsModal 
+          currentCrew={currentCrew} 
+          allCrews={allCrews} 
+          db={db} 
+          appId={appId} 
+          onClose={() => setIsSettingsOpen(false)} 
+          onLogout={handleCrewLogout} 
+        />
+      )}
+
       <nav className="fixed bottom-0 w-full bg-zinc-900 border-t border-zinc-800 pb-safe z-50">
         <div className="max-w-3xl mx-auto flex">
           <button onClick={() => setCurrentTab('timetable')} className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors ${currentTab === 'timetable' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
@@ -964,6 +940,187 @@ export default function App() {
           </button>
         </div>
       </nav>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS ---
+
+// Screen 1: Crew Login oder Erstellen
+function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId }) {
+  const [isCreating, setIsCreating] = useState(false);
+  const [crewName, setCrewName] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    const trimmedName = crewName.trim();
+    
+    if (isCreating) {
+      if (allCrews.some(c => c.name.toLowerCase() === trimmedName.toLowerCase())) {
+        setError('Dieser Crew-Name ist bereits vergeben.');
+        return;
+      }
+      
+      // MIGRATION: Wenn "Aachen" erstellt wird, weisen wir die alte legacy ID zu
+      const newId = trimmedName.toLowerCase() === 'aachen' ? 'legacy_aachen' : generateId();
+      try {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'crews', newId), { 
+          id: newId, 
+          name: trimmedName, 
+          password: password 
+        });
+        localStorage.setItem('hurricaneCrewId', newId);
+        setActiveCrewId(newId);
+      } catch (err) {
+        setError('Fehler beim Erstellen der Crew.');
+      }
+    } else {
+      const foundCrew = allCrews.find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
+      if (!foundCrew) {
+        setError('Crew nicht gefunden.');
+        return;
+      }
+      if (foundCrew.password !== password) {
+        setError('Falsches Passwort.');
+        return;
+      }
+      localStorage.setItem('hurricaneCrewId', foundCrew.id);
+      setActiveCrewId(foundCrew.id);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+          <Shield className="text-zinc-950 w-8 h-8" />
+        </div>
+        <h1 className="text-3xl font-black text-center mb-2 text-white">Hurricane '26</h1>
+        <p className="text-zinc-400 text-center mb-8">Tritt deiner Crew bei oder gründe eine neue.</p>
+        
+        <div className="flex mb-6 bg-zinc-950 rounded-lg p-1">
+          <button onClick={() => {setIsCreating(false); setError('');}} className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${!isCreating ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Beitreten</button>
+          <button onClick={() => {setIsCreating(true); setError('');}} className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${isCreating ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Erstellen</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Crew Name</label>
+            <input type="text" value={crewName} onChange={(e) => setCrewName(e.target.value)} placeholder="z.B. Aachen" className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-white outline-none" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Passwort</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3.5 text-zinc-600" size={18} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full pl-10 pr-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-white outline-none" required />
+            </div>
+          </div>
+          {error && <p className="text-red-400 text-sm font-bold bg-red-500/10 p-3 rounded-lg">{error}</p>}
+          <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-colors mt-4">
+            {isCreating ? 'Crew gründen' : 'Crew beitreten'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Screen 2: Benutzernamen für aktive Crew eingeben
+function UserLoginScreen({ setUserName, currentCrew }) {
+  const [inputName, setInputName] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (inputName.trim().length > 0) {
+      const nameToSave = inputName.trim();
+      setUserName(nameToSave);
+      localStorage.setItem('hurricaneName', nameToSave);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+          <User className="text-zinc-950 w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-black text-center mb-2 text-white">Willkommen bei <span className="text-emerald-500">{currentCrew.name}</span>!</h1>
+        <p className="text-zinc-400 text-center mb-8">Damit die anderen dich erkennen:</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Dein Name / Spitzname</label>
+            <input type="text" value={inputName} onChange={(e) => setInputName(e.target.value)} placeholder="z.B. Max" className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-white outline-none" required />
+          </div>
+          <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-colors">Los geht's</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Crew Settings Modal
+function CrewSettingsModal({ currentCrew, allCrews, db, appId, onClose, onLogout }) {
+  const [newName, setNewName] = useState(currentCrew.name);
+  const [newPassword, setNewPassword] = useState(currentCrew.password);
+  const [error, setError] = useState('');
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError('');
+    const trimmedName = newName.trim();
+    
+    // Prüfen, ob eine ANDERE Crew diesen Namen schon hat
+    if (trimmedName.toLowerCase() !== currentCrew.name.toLowerCase() && 
+        allCrews.some(c => c.id !== currentCrew.id && c.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setError('Dieser Name wird bereits von einer anderen Crew genutzt.');
+      return;
+    }
+
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'crews', currentCrew.id), {
+        name: trimmedName,
+        password: newPassword
+      }, { merge: true });
+      onClose();
+    } catch(err) {
+      setError('Fehler beim Speichern.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings className="text-emerald-500"/> Crew Einstellungen</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white"><X size={20}/></button>
+        </div>
+        
+        <form onSubmit={handleSave} className="space-y-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Crew Name ändern</label>
+            <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-emerald-500 outline-none" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Crew Passwort ändern</label>
+            <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-emerald-500 outline-none" required />
+          </div>
+          {error && <p className="text-red-400 text-sm font-bold bg-red-500/10 p-2 rounded-lg">{error}</p>}
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2 bg-zinc-800 text-zinc-300 rounded-xl font-bold hover:bg-zinc-700">Abbrechen</button>
+            <button type="submit" className="flex-1 py-2 bg-emerald-500 text-zinc-950 rounded-xl font-bold hover:bg-emerald-400">Speichern</button>
+          </div>
+        </form>
+
+        <div className="border-t border-zinc-800 pt-6">
+          <button onClick={onLogout} className="w-full py-3 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold rounded-xl transition-colors flex justify-center items-center gap-2">
+            <LogOut size={18}/> Aus Crew ausloggen
+          </button>
+          <p className="text-xs text-zinc-500 text-center mt-3">Du verlässt die aktuelle Crew und kehrst zur Startseite zurück.</p>
+        </div>
+      </div>
     </div>
   );
 }
