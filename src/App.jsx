@@ -34,7 +34,6 @@ const HURRICANE_ACTS = [
   { id: 'do4', day: 'Donnerstag', time: '21:30', endTime: '22:30', stage: 'Wild Coast Stage', name: 'Paula Carolina' },
   { id: 'do5', day: 'Donnerstag', time: '23:00', endTime: '00:15', stage: 'Wild Coast Stage', name: 'Juli' },
   { id: 'do6', day: 'Donnerstag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Disarstar' },
-  { id: 'do7', day: 'Donnerstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique' },
 
   // Freitag
   { id: 'fr1', day: 'Freitag', time: '15:00', endTime: '15:30', stage: 'Forest Stage', name: '#HURRICANESWIMTEAM' },
@@ -45,7 +44,7 @@ const HURRICANE_ACTS = [
   { id: 'fr6', day: 'Freitag', time: '16:30', endTime: '17:15', stage: 'River Stage', name: 'Rikas' },
   { id: 'fr7', day: 'Freitag', time: '16:30', endTime: '17:15', stage: 'Wild Coast Stage', name: 'Militarie Gun' },
   { id: 'fr8', day: 'Freitag', time: '17:15', endTime: '18:15', stage: 'Forest Stage', name: 'Sondaschule' },
-  { id: 'fr9', day: 'Freitag', time: '17:15', endTime: '18:00', stage: 'Mountain Stage', name: 'Basement' },
+  { id: 'fr9', day: 'Freitag', time: '17:15', endTime: '18:15', stage: 'Mountain Stage', name: 'Basement' },
   { id: 'fr10', day: 'Freitag', time: '18:00', endTime: '19:00', stage: 'River Stage', name: 'Royel Otis' },
   { id: 'fr11', day: 'Freitag', time: '18:00', endTime: '19:00', stage: 'Wild Coast Stage', name: 'Kayla Shyx' },
   { id: 'fr12', day: 'Freitag', time: '18:45', endTime: '19:45', stage: 'Forest Stage', name: 'Donots' },
@@ -89,7 +88,7 @@ const HURRICANE_ACTS = [
   { id: 'sa24', day: 'Samstag', time: '19:30', endTime: '20:30', stage: 'River Stage', name: 'Wolf Alice' },
   { id: 'sa25', day: 'Samstag', time: '19:45', endTime: '20:45', stage: 'Wild Coast Stage', name: 'Orville Peck' },
   { id: 'sa26', day: 'Samstag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'Papa Roach' },
-  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '22:00', stage: 'Mountain Stage', name: 'Edwin Rosen' },
+  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '21:45', stage: 'Mountain Stage', name: 'Edwin Rosen' },
   { id: 'sa28', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Florence + The Machine' },
   { id: 'sa29', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'Wild Coast Stage', name: 'Tinlicker' },
   { id: 'sa30', day: 'Samstag', time: '22:55', endTime: '00:30', stage: 'Forest Stage', name: 'Twenty One Pilots' },
