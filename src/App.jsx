@@ -31,7 +31,7 @@ const HURRICANE_ACTS = [
   { id: 'do4', day: 'Donnerstag', time: '21:30', endTime: '22:30', stage: 'Wild Coast Stage', name: 'Paula Carolina' },
   { id: 'do5', day: 'Donnerstag', time: '23:00', endTime: '00:15', stage: 'Wild Coast Stage', name: 'Juli' },
   { id: 'do6', day: 'Donnerstag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Disarstar' },
-  { id: 'do7', day: 'Donnerstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique' },
+  { id: 'do7', day: 'Donnerstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique (DJ)' },
 
   // Freitag
   { id: 'fr1', day: 'Freitag', time: '15:00', endTime: '15:30', stage: 'Forest Stage', name: '#HURRICANESWIMTEAM' },
@@ -58,6 +58,7 @@ const HURRICANE_ACTS = [
   { id: 'fr22', day: 'Freitag', time: '23:15', endTime: '00:15', stage: 'Wild Coast Stage', name: 'Roya' },
   { id: 'fr23', day: 'Freitag', time: '00:30', endTime: '02:00', stage: 'River Stage', name: 'Roy Bianco & Die Abbrunzati Boys' },
   { id: 'fr24', day: 'Freitag', time: '00:45', endTime: '02:00', stage: 'Wild Coast Stage', name: 'Modestep (Live)' },
+  { id: 'fr25', day: 'Freitag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Steve Clash (DJ)' },
 
   // Samstag
   { id: 'sa1', day: 'Samstag', time: '11:00', endTime: '12:00', stage: 'Wild Coast Stage', name: 'Deutschland3000' },
@@ -93,6 +94,8 @@ const HURRICANE_ACTS = [
   { id: 'sa31', day: 'Samstag', time: '23:15', endTime: '00:30', stage: 'Mountain Stage', name: 'SSIO' },
   { id: 'sa32', day: 'Samstag', time: '23:30', endTime: '01:00', stage: 'Wild Coast Stage', name: 'David Puentez' },
   { id: 'sa33', day: 'Samstag', time: '00:30', endTime: '02:00', stage: 'River Stage', name: 'Finch' },
+  { id: 'sa34', day: 'Samstag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Buzz Beat Boutique (DJ)' }, // <-- Komma hinzugefügt
+  
 
   // Sonntag
   { id: 'so1', day: 'Sonntag', time: '10:30', endTime: '12:00', stage: 'Wild Coast Stage', name: 'Der Spiegel Live' },
@@ -121,7 +124,8 @@ const HURRICANE_ACTS = [
   { id: 'so24', day: 'Sonntag', time: '20:45', endTime: '22:15', stage: 'Wild Coast Stage', name: 'Boys Noize' },
   { id: 'so25', day: 'Sonntag', time: '21:00', endTime: '22:30', stage: 'River Stage', name: 'Provinz' },
   { id: 'so26', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Forest Stage', name: 'Billy Talent' },
-  { id: 'so27', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Modeselektor' }
+  { id: 'so27', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Modeselektor' },
+  { id: 'so28', day: 'Freitag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Steve Clash (DJ)' },
 ];
 
 const timeToMinutes = (timeStr) => {
@@ -655,14 +659,14 @@ export default function App() {
                           <div className="mb-5">
                             <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
                             <div className="flex flex-wrap gap-2">
-                              <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                              <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                 {myVote === 'definitely' && <Check size={16} />} Auf jeden Fall!
                               </button>
-                              <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                              <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                 {myVote === 'if-fits' && <Check size={16} />} Nur wenns passt
                               </button>
                               {myVote && (
-                                <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all">
+                                <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="w-full sm:w-auto py-3 sm:py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all mt-1 sm:mt-0">
                                   Löschen
                                 </button>
                               )}
@@ -758,13 +762,13 @@ export default function App() {
                               <div className="mb-5">
                                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
                                 <div className="flex flex-wrap gap-2">
-                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${voteStatus === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${voteStatus === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {voteStatus === 'definitely' && <Check size={16} />} Auf jeden Fall!
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${voteStatus === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${voteStatus === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {voteStatus === 'if-fits' && <Check size={16} />} Nur wenns passt
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all">Löschen</button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all mt-1 sm:mt-0">Löschen</button>
                                 </div>
                               </div>
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
@@ -887,13 +891,13 @@ export default function App() {
                               <div className="mb-5">
                                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du auch dabei?</p>
                                 <div className="flex flex-wrap gap-2">
-                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {myVote === 'definitely' && <Check size={16} />} Auf jeden Fall!
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {myVote === 'if-fits' && <Check size={16} />} Nur wenns passt
                                   </button>
-                                  {myVote && <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all">Löschen</button>}
+                                  {myVote && <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all mt-1 sm:mt-0">Löschen</button>}
                                 </div>
                               </div>
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
