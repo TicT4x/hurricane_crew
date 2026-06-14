@@ -88,7 +88,7 @@ const HURRICANE_ACTS = [
   { id: 'sa24', day: 'Samstag', time: '19:30', endTime: '20:30', stage: 'River Stage', name: 'Wolf Alice' },
   { id: 'sa25', day: 'Samstag', time: '19:45', endTime: '20:45', stage: 'Wild Coast Stage', name: 'Orville Peck' },
   { id: 'sa26', day: 'Samstag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'Papa Roach' },
-  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '22:00', stage: 'Mountain Stage', name: 'Edwin Rosen' },
+  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '21:15', stage: 'Mountain Stage', name: 'Edwin Rosen' },
   { id: 'sa28', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Florence + The Machine' },
   { id: 'sa29', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'Wild Coast Stage', name: 'Tinlicker' },
   { id: 'sa30', day: 'Samstag', time: '22:55', endTime: '00:30', stage: 'Forest Stage', name: 'Twenty One Pilots' },
@@ -294,7 +294,7 @@ export default function App() {
 
   // SCREEN 2: Benutzername eingeben
   if (!userName) {
-    return <UserLoginScreen setUserName={setUserName} currentCrew={currentCrew} />;
+    return <UserLoginScreen setUserName={setUserName} currentCrew={currentCrew} onBack={handleCrewLogout} />;
   }
 
 
@@ -1029,7 +1029,7 @@ function CrewLoginScreen({ allCrews, setActiveCrewId, db, appId }) {
 }
 
 // Screen 2: Benutzernamen für aktive Crew eingeben
-function UserLoginScreen({ setUserName, currentCrew }) {
+function UserLoginScreen({ setUserName, currentCrew, onBack }) {
   const [inputName, setInputName] = useState('');
 
   const handleSubmit = (e) => {
@@ -1043,8 +1043,17 @@ function UserLoginScreen({ setUserName, currentCrew }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
-        <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+        {/* Zurück-Button oben links */}
+        <button 
+          onClick={onBack} 
+          className="absolute top-6 left-6 text-zinc-500 hover:text-white transition-colors"
+          title="Andere Crew wählen"
+        >
+          <ArrowLeft size={24} />
+        </button>
+
+        <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(16,185,129,0.4)] mt-4">
           <User className="text-zinc-950 w-8 h-8" />
         </div>
         <h1 className="text-2xl font-black text-center mb-2 text-white">Willkommen bei <span className="text-emerald-500">{currentCrew.name}</span>!</h1>
