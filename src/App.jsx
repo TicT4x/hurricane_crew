@@ -86,7 +86,7 @@ const HURRICANE_ACTS = [
   { id: 'sa24', day: 'Samstag', time: '19:30', endTime: '20:30', stage: 'River Stage', name: 'Wolf Alice' },
   { id: 'sa25', day: 'Samstag', time: '19:45', endTime: '20:45', stage: 'Wild Coast Stage', name: 'Orville Peck' },
   { id: 'sa26', day: 'Samstag', time: '20:30', endTime: '21:45', stage: 'Forest Stage', name: 'Papa Roach' },
-  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '21:15', stage: 'Mountain Stage', name: 'Edwin Rosen' },
+  { id: 'sa27', day: 'Samstag', time: '20:45', endTime: '21:45', stage: 'Mountain Stage', name: 'Edwin Rosen' },
   { id: 'sa28', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'River Stage', name: 'Florence + The Machine' },
   { id: 'sa29', day: 'Samstag', time: '21:45', endTime: '23:15', stage: 'Wild Coast Stage', name: 'Tinlicker' },
   { id: 'sa30', day: 'Samstag', time: '22:55', endTime: '00:30', stage: 'Forest Stage', name: 'Twenty One Pilots' },
