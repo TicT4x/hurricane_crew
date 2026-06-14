@@ -384,7 +384,7 @@ export default function App() {
   const currentMinutes = now.getHours() * 60 + now.getMinutes() + (now.getHours() < 6 ? 24 * 60 : 0);
 
   const viewToggleUI = (
-    <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-1 flex-shrink-0 ml-2">
+    <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-1 flex-shrink-0">
       <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Listenansicht">
         <List size={16} />
       </button>
@@ -394,7 +394,7 @@ export default function App() {
     </div>
   );
 
-  // VERBESSERTES TIMELINE-GRID: Nativ Edge-to-Edge & Größere Schrift
+  // VERBESSERTES TIMELINE-GRID: Nativ Edge-to-Edge & Ohne horizontales Scrollen
   const renderTimelineGrid = (dayString, actsToDisplay, showDayTitle = false) => {
     const allActsForTimelineDay = SORTED_ACTS.filter(act => act.day === dayString);
     if (allActsForTimelineDay.length === 0) return null;
@@ -423,20 +423,18 @@ export default function App() {
             <p className="text-zinc-500 font-medium">Du hast für {dayString} noch keine Acts ausgewählt.</p>
           </div>
         ) : (
-          // Auf Mobile: Randloses (edge-to-edge) Scrollen ohne Kasten-Look. Auf Desktop: Schöner Rahmen.
-          <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-hide border-y sm:border sm:rounded-2xl border-zinc-800/60 bg-zinc-950 sm:bg-zinc-900/30">
-            
-            {/* Mindestbreite 700px erzwingt auf Handys scrollen, stellt aber lesbare Textgröße sicher */}
-            <div className="min-w-[700px] w-full flex relative" style={{ height: `${totalGridMinutes * PIXELS_PER_MINUTE + 60}px` }}>
+          <div className="-mx-4 sm:mx-0 border-y sm:border sm:rounded-2xl border-zinc-800/60 bg-zinc-950 sm:bg-zinc-900/30">
+            {/* w-full statt min-w-[700px] verhindert seitliches Scrollen */}
+            <div className="w-full flex relative" style={{ height: `${totalGridMinutes * PIXELS_PER_MINUTE + 60}px` }}>
               
               {/* Zeit-Achse (Y-Achse) */}
-              <div className="w-12 sm:w-16 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-900/40 z-20 relative top-[40px]">
+              <div className="w-10 sm:w-16 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-900/40 z-20 relative top-[40px]">
                 {timelineHours.map((mins) => {
                   const hourLabel = `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:00`;
                   const topPx = (mins - startHourMins) * PIXELS_PER_MINUTE;
                   return (
-                    <div key={mins} className="absolute w-full text-right pr-1.5 sm:pr-2" style={{ top: topPx - 8 }}>
-                      <span className="text-[10px] font-bold text-zinc-500">{hourLabel}</span>
+                    <div key={mins} className="absolute w-full text-right pr-1 sm:pr-2" style={{ top: topPx - 8 }}>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-zinc-500">{hourLabel}</span>
                     </div>
                   );
                 })}
@@ -444,7 +442,7 @@ export default function App() {
 
               {/* Bühnen Spalten */}
               <div className="flex-1 flex relative min-w-0">
-                {/* Horizontale Gitterlinien über alle Spalten */}
+                {/* Horizontale Gitterlinien */}
                 <div className="absolute inset-0 pointer-events-none top-[40px]">
                   {timelineHours.map((mins) => (
                     <div key={mins} className="absolute w-full border-t border-zinc-800/30" style={{ top: (mins - startHourMins) * PIXELS_PER_MINUTE }} />
@@ -453,7 +451,6 @@ export default function App() {
 
                 {timelineStages.map(stage => {
                   const stageActs = actsToDisplay.filter(a => a.stage === stage);
-                  
                   const headerColor = stage === 'Forest Stage' ? 'border-b-green-500' :
                                       stage === 'River Stage' ? 'border-b-blue-500' :
                                       stage === 'Mountain Stage' ? 'border-b-purple-500' : 'border-b-orange-500';
@@ -461,8 +458,8 @@ export default function App() {
                   return (
                     <div key={stage} className="flex-1 border-r border-zinc-800/40 last:border-r-0 relative group min-w-0">
                       {/* Spalten-Header */}
-                      <div className={`h-[40px] sticky top-0 bg-zinc-900/95 backdrop-blur-md border-b-2 ${headerColor} z-30 flex items-center justify-center px-1 overflow-hidden`}>
-                        <span className="text-[11px] sm:text-xs font-black uppercase text-zinc-300 truncate" title={stage}>{stage.replace(' Stage', '')}</span>
+                      <div className={`h-[40px] sticky top-0 bg-zinc-900/95 backdrop-blur-md border-b-2 ${headerColor} z-30 flex items-center justify-center px-0.5 sm:px-1 overflow-hidden`}>
+                        <span className="text-[8px] sm:text-[11px] font-black uppercase text-zinc-300 truncate tracking-tighter" title={stage}>{stage.replace(' Stage', '')}</span>
                       </div>
                       
                       {/* Spalten-Inhalt (Acts) */}
@@ -486,28 +483,27 @@ export default function App() {
                             <div 
                               key={act.id}
                               onClick={() => setModalActId(act.id)}
-                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 border rounded-md p-1.5 cursor-pointer transition-all overflow-hidden flex flex-col shadow-lg backdrop-blur-md ${blockClasses}`}
+                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 border rounded p-0.5 sm:p-1.5 cursor-pointer transition-all overflow-hidden flex flex-col shadow-lg backdrop-blur-md ${blockClasses}`}
                               style={{ top: topPx, height: heightPx - 2 }}
                             >
-                              <span className="text-[10px] font-bold opacity-80 mb-0.5 leading-none truncate">
-                                {act.time} - {act.endTime}
+                              <span className="text-[7px] sm:text-[10px] font-bold opacity-80 mb-0.5 leading-none truncate">
+                                {act.time}-{act.endTime}
                               </span>
-                              {/* Größere Schrift, besser lesbar */}
-                              <span className="text-xs font-black leading-tight overflow-hidden text-ellipsis line-clamp-2">
+                              <span className="text-[8px] sm:text-xs font-black leading-tight overflow-hidden text-ellipsis line-clamp-2 sm:line-clamp-3">
                                 {act.name}
                               </span>
                               
                               {/* Icon Badge für Crew */}
                               {totalAttendees > 0 && (
-                                <div className="absolute bottom-1 right-1 flex items-center gap-0.5 bg-black/50 px-1 rounded text-[9px] font-bold">
+                                <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 flex items-center gap-0.5 bg-black/50 px-1 rounded text-[7px] sm:text-[9px] font-bold">
                                   <Users size={8} /> {totalAttendees}
                                 </div>
                               )}
                               
                               {/* Vote Icons */}
                               {myVote && (
-                                <div className="absolute top-1 right-1">
-                                  <Check size={10} className={myVote === 'definitely' ? 'text-emerald-400' : 'text-yellow-400'} />
+                                <div className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1">
+                                  <Check size={8} className={`sm:w-2.5 sm:h-2.5 ${myVote === 'definitely' ? 'text-emerald-400' : 'text-yellow-400'}`} />
                                 </div>
                               )}
                             </div>
@@ -549,9 +545,10 @@ export default function App() {
             </div>
           </div>
           
+          {/* Umschalter nach Oben verschoben in die Toolbar */}
           {currentTab === 'timetable' && (
-            <div className="mb-4 relative">
-              <div className={`flex items-center border rounded-xl overflow-hidden transition-colors ${isSearching ? 'border-emerald-500 bg-zinc-950' : 'border-zinc-800 bg-zinc-900'}`}>
+            <div className="mb-4 flex gap-2 items-center">
+              <div className={`flex-1 flex items-center border rounded-xl overflow-hidden transition-colors ${isSearching ? 'border-emerald-500 bg-zinc-950' : 'border-zinc-800 bg-zinc-900'}`}>
                 <Search className={`ml-3 ${isSearching ? 'text-emerald-500' : 'text-zinc-500'}`} size={18} />
                 <input
                   type="text" placeholder="Suche nach Bands..." value={searchQuery}
@@ -564,49 +561,51 @@ export default function App() {
                   </button>
                 )}
               </div>
+              {!isSearching && viewToggleUI}
             </div>
           )}
 
           {currentTab === 'myplan' && !isSearching && (
-            <div className="pb-3">
+            <div className="pb-3 flex justify-between items-center">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <CalendarDays className="text-emerald-500" size={20} />
-                Mein Terminkalender
+                Mein Timetable
               </h2>
+              {viewToggleUI}
             </div>
           )}
 
           {currentTab === 'crew' && (
-            <div className="pb-3 flex items-center gap-2">
-              {selectedCrewMember ? (
-                <button onClick={() => setSelectedCrewMember(null)} className="text-zinc-400 hover:text-white transition-colors p-1 -ml-1">
-                  <ArrowLeft size={20} />
-                </button>
-              ) : (
-                <Users className="text-emerald-500" size={20} />
-              )}
-              <h2 className="text-lg font-bold text-white">
-                {selectedCrewMember ? `Plan von ${selectedCrewMember}` : 'Crew Übersicht'}
-              </h2>
+            <div className="pb-3 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                {selectedCrewMember ? (
+                  <button onClick={() => setSelectedCrewMember(null)} className="text-zinc-400 hover:text-white transition-colors p-1 -ml-1">
+                    <ArrowLeft size={20} />
+                  </button>
+                ) : (
+                  <Users className="text-emerald-500" size={20} />
+                )}
+                <h2 className="text-lg font-bold text-white">
+                  {selectedCrewMember ? `Plan von ${selectedCrewMember}` : 'Crew Übersicht'}
+                </h2>
+              </div>
+              {selectedCrewMember && viewToggleUI}
             </div>
           )}
 
           {(currentTab === 'timetable' || currentTab === 'myplan' || (currentTab === 'crew' && selectedCrewMember)) && !isSearching && (
             <>
-              <div className="flex justify-between items-center pb-3">
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide pr-4">
-                  {days.map(day => (
-                    <button
-                      key={day} onClick={() => { setActiveDay(day); setExpandedAct(null); }}
-                      className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                        activeDay === day ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                      }`}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-                {viewToggleUI}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-3">
+                {days.map(day => (
+                  <button
+                    key={day} onClick={() => { setActiveDay(day); setExpandedAct(null); }}
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                      activeDay === day ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                ))}
               </div>
 
               {currentTab === 'timetable' && viewMode === 'list' && (
@@ -920,7 +919,7 @@ export default function App() {
                                 </div>
                               </div>
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
-                              {totalAttendees <= 1 ? <p className="text-sm text-zinc-500 italic">Noch niemand sonst eingetragen.</p> : (
+                              {totalAttendees <= 1 ? <p className="text-sm text-zinc-500 italic">Außer dir noch niemand eingetragen.</p> : (
                                 <div className="space-y-2">
                                   {attendees.definitely.length > 0 && (
                                     <div className="flex items-start gap-2 text-sm">
@@ -958,7 +957,7 @@ export default function App() {
           </button>
           <button onClick={() => setCurrentTab('myplan')} className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${currentTab === 'myplan' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
             <CalendarDays size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Mein Plan</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Mein Timetable</span>
           </button>
           <button onClick={() => { setCurrentTab('crew'); setSelectedCrewMember(null); }} className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${currentTab === 'crew' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
             <Users size={20} />
