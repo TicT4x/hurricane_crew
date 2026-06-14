@@ -125,7 +125,7 @@ const HURRICANE_ACTS = [
   { id: 'so25', day: 'Sonntag', time: '21:00', endTime: '22:30', stage: 'River Stage', name: 'Provinz' },
   { id: 'so26', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Forest Stage', name: 'Billy Talent' },
   { id: 'so27', day: 'Sonntag', time: '22:30', endTime: '00:00', stage: 'Wild Coast Stage', name: 'Modeselektor' },
-  { id: 'so28', day: 'Freitag', time: '02:00', endTime: '05:00', stage: 'Wild Coast Stage', name: 'Steve Clash (DJ)' },
+  { id: 'so28', day: 'Sonntag', time: '02:00', endTime: '03:00', stage: 'Wild Coast Stage', name: 'Steve Clash (DJ)' },
 ];
 
 const timeToMinutes = (timeStr) => {
