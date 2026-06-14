@@ -128,7 +128,6 @@ const HURRICANE_ACTS = [
 ];
 
 // Helper: Konvertiert Zeit ("15:30") in Minuten für sauberes Sortieren. 
-// Alles vor 06:00 Uhr wird als "nächster Tag" für das Sortieren behandelt.
 const timeToMinutes = (timeStr) => {
   const [hours, minutes] = timeStr.split(':').map(Number);
   let total = hours * 60 + minutes;
@@ -136,10 +135,7 @@ const timeToMinutes = (timeStr) => {
   return total;
 };
 
-// Sortierte Acts
 const SORTED_ACTS = [...HURRICANE_ACTS].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-
-// Pixel pro Minute für den Timeline-View
 const PIXELS_PER_MINUTE = 2.5;
 
 export default function App() {
@@ -148,22 +144,19 @@ export default function App() {
   const [inputName, setInputName] = useState('');
   const [activeDay, setActiveDay] = useState('Freitag');
   const [activeStage, setActiveStage] = useState('Alle');
-  const [viewMode, setViewMode] = useState('list'); // 'list' oder 'timeline'
+  const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [currentTab, setCurrentTab] = useState('timetable'); // 'timetable', 'myplan' oder 'crew'
+  const [currentTab, setCurrentTab] = useState('timetable');
   const [selectedCrewMember, setSelectedCrewMember] = useState(null);
   const [now, setNow] = useState(new Date());
-  const [allVotes, setAllVotes] = useState({}); // Struktur: { "Max": { "fr1": "definitely", ... } }
+  const [allVotes, setAllVotes] = useState({});
   const [expandedAct, setExpandedAct] = useState(null);
-  const [modalActId, setModalActId] = useState(null); // Für Timeline-Klicks
+  const [modalActId, setModalActId] = useState(null);
 
-  // 1. Initialisierung und Authentifizierung (Mandatory Rules)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      if (authUser) {
-        setUser(authUser);
-      }
+      if (authUser) setUser(authUser);
     });
 
     const initAuth = async () => {
@@ -179,19 +172,14 @@ export default function App() {
       }
     };
     initAuth();
-    
     return () => unsubscribe();
   }, []);
 
-  // 2. Lokalen Namen aus dem Cache laden
   useEffect(() => {
     const storedName = localStorage.getItem('hurricaneName');
-    if (storedName) {
-      setUserName(storedName);
-    }
+    if (storedName) setUserName(storedName);
   }, []);
 
-  // 3. Reale Daten aus Firebase laden
   useEffect(() => {
     if (!user) return;
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'userVotes');
@@ -201,19 +189,15 @@ export default function App() {
         data[doc.id] = doc.data().votes || {};
       });
       setAllVotes(data);
-    }, (error) => {
-      console.error("Firestore error:", error);
     });
     return () => unsubscribe();
   }, [user]);
 
-  // 4. Uhrzeit aktualisieren für "Jetzt" Anzeige im Kalender (jede Minute)
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Handle Login / Name speichern
   const handleLogin = (e) => {
     e.preventDefault();
     if (inputName.trim().length > 0) {
@@ -229,10 +213,8 @@ export default function App() {
     setInputName('');
   };
 
-  // Vote abgeben oder aktualisieren
   const handleVote = async (actId, status) => {
     if (!user || !userName) return;
-
     const currentUserVotes = allVotes[userName] ? { ...allVotes[userName] } : {};
     
     if (status === 'remove') {
@@ -242,31 +224,24 @@ export default function App() {
     }
 
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'userVotes', userName);
-    
     if (Object.keys(currentUserVotes).length === 0) {
       await deleteDoc(docRef);
     } else {
-      await setDoc(docRef, {
-        userName: userName,
-        votes: currentUserVotes
-      });
+      await setDoc(docRef, { userName: userName, votes: currentUserVotes });
     }
   };
 
-  // Hilfsfunktion: Berechne wer bei einem Act dabei ist
   const getActAttendees = (actId) => {
     const definitely = [];
     const ifFits = [];
-
     Object.entries(allVotes).forEach(([name, votesMap]) => {
       if (votesMap[actId] === 'definitely') definitely.push(name);
       if (votesMap[actId] === 'if-fits') ifFits.push(name);
     });
-
     return { definitely, ifFits };
   };
 
-  // Hilfsfunktion: Modal Act Rendering (wird in Timeline & Detail-Overlays genutzt)
+  // VERBESSERTES MODAL: Zentriert & Intern Scrollbar
   const renderActModal = () => {
     if (!modalActId) return null;
     const act = HURRICANE_ACTS.find(a => a.id === modalActId);
@@ -277,13 +252,13 @@ export default function App() {
     const myVote = (allVotes[userName] || {})[act.id] || null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6" onClick={() => setModalActId(null)}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setModalActId(null)}>
         <div 
-          className="w-full max-w-lg bg-zinc-900 border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+          className="w-full max-w-lg bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95"
           onClick={e => e.stopPropagation()} 
         >
-          {/* Modal Header */}
-          <div className="p-5 border-b border-zinc-800 bg-zinc-900 flex justify-between items-start">
+          {/* Modal Header - Bleibt immer oben */}
+          <div className="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900 flex justify-between items-start shrink-0 rounded-t-2xl">
             <div>
               <h3 className="text-xl font-black text-white mb-1">{act.name}</h3>
               <div className="flex items-center gap-3 text-xs font-medium text-zinc-400">
@@ -300,20 +275,20 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <button onClick={() => setModalActId(null)} className="p-2 text-zinc-400 hover:text-white bg-zinc-800/50 rounded-full">
+            <button onClick={() => setModalActId(null)} className="p-2 text-zinc-400 hover:text-white bg-zinc-800/50 rounded-full shrink-0 ml-4">
               <X size={18} />
             </button>
           </div>
 
-          {/* Modal Content */}
-          <div className="p-5 bg-zinc-900/80 space-y-6">
+          {/* Modal Content - Scrollt intern wenn zu lang */}
+          <div className="p-4 sm:p-5 bg-zinc-900/80 space-y-6 overflow-y-auto rounded-b-2xl">
             {/* Voting */}
             <div>
               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
               <div className="flex flex-wrap gap-2">
                 <button 
                   onClick={() => handleVote(act.id, 'definitely')}
-                  className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                     myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                   }`}
                 >
@@ -321,7 +296,7 @@ export default function App() {
                 </button>
                 <button 
                   onClick={() => handleVote(act.id, 'if-fits')}
-                  className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 min-w-[120px] py-3 sm:py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                     myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                   }`}
                 >
@@ -330,7 +305,7 @@ export default function App() {
                 {myVote && (
                   <button 
                     onClick={() => handleVote(act.id, 'remove')}
-                    className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all"
+                    className="w-full sm:w-auto py-3 sm:py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all mt-1 sm:mt-0"
                   >
                     Löschen
                   </button>
@@ -372,7 +347,6 @@ export default function App() {
     );
   };
 
-  // Wenn der Nutzer noch keinen Namen angegeben hat, zeige Login-Screen
   if (!userName) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
@@ -386,71 +360,42 @@ export default function App() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-zinc-400 mb-2">Wie heißt du?</label>
-              <input
-                type="text"
-                value={inputName}
-                onChange={(e) => setInputName(e.target.value)}
-                placeholder="Dein Vorname / Spitzname"
-                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-zinc-600 outline-none transition-all"
-                required
-              />
+              <input type="text" value={inputName} onChange={(e) => setInputName(e.target.value)} placeholder="Dein Vorname / Spitzname" className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-zinc-600 outline-none transition-all" required />
             </div>
-            <button
-              type="submit"
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-colors"
-            >
-              Los geht's
-            </button>
+            <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-colors">Los geht's</button>
           </form>
         </div>
       </div>
     );
   }
 
-  // --- MAIN APP RENDER ---
   const days = ['Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
   const timelineStages = ['Forest Stage', 'River Stage', 'Mountain Stage', 'Wild Coast Stage'];
   const stages = ['Alle', ...timelineStages];
   
-  // Such-Filter Logik
   const actsForDay = isSearching 
     ? SORTED_ACTS.filter(act => act.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : SORTED_ACTS.filter(act => 
-        act.day === activeDay && 
-        (activeStage === 'Alle' || act.stage === activeStage)
-      );
+    : SORTED_ACTS.filter(act => act.day === activeDay && (activeStage === 'Alle' || act.stage === activeStage));
 
-  // Daten für den persönlichen Plan
   const myVotes = allVotes[userName] || {};
   const myActs = SORTED_ACTS.filter(act => myVotes[act.id]);
 
-  // Bestimme den aktuellen Zeitpunkt (für die Live-Anzeige)
   const currentDayString = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][now.getDay()];
   const currentMinutes = now.getHours() * 60 + now.getMinutes() + (now.getHours() < 6 ? 24 * 60 : 0);
 
-  // Wiederverwendbarer View-Toggle-Button
   const viewToggleUI = (
-    <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-1 flex-shrink-0">
-      <button 
-        onClick={() => setViewMode('list')} 
-        className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
-        title="Listenansicht"
-      >
+    <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-1 flex-shrink-0 ml-2">
+      <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Listenansicht">
         <List size={16} />
       </button>
-      <button 
-        onClick={() => setViewMode('timeline')} 
-        className={`p-1.5 rounded transition-all ${viewMode === 'timeline' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
-        title="Timeline Balkenansicht"
-      >
+      <button onClick={() => setViewMode('timeline')} className={`p-1.5 rounded transition-all ${viewMode === 'timeline' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Timeline Balkenansicht">
         <Columns size={16} />
       </button>
     </div>
   );
 
-  // Hilfsfunktion: Rendert ein Timeline-Grid integriert (ohne den klobigen Rahmen)
+  // VERBESSERTES TIMELINE-GRID: Nativ Edge-to-Edge & Größere Schrift
   const renderTimelineGrid = (dayString, actsToDisplay, showDayTitle = false) => {
-    // Die Zeitskala basiert immer auf ALLEN Acts dieses Tages, damit man echte Lücken/Relationen sieht!
     const allActsForTimelineDay = SORTED_ACTS.filter(act => act.day === dayString);
     if (allActsForTimelineDay.length === 0) return null;
 
@@ -467,28 +412,31 @@ export default function App() {
     return (
       <div key={dayString} className={showDayTitle ? "mb-12" : ""}>
         {showDayTitle && (
-          <h3 className="text-xl font-black text-white mb-4 sticky top-[70px] bg-zinc-950/90 backdrop-blur-sm py-2 z-10 border-b border-zinc-800/50">
+          <h3 className="text-xl font-black text-white mb-4 sticky top-[70px] bg-zinc-950/90 backdrop-blur-sm py-2 z-10 border-b border-zinc-800/50 px-4 sm:px-0">
             {dayString}
           </h3>
         )}
         
         {actsToDisplay.length === 0 ? (
-          <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+          <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50 mx-4 sm:mx-0">
             <CalendarDays className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
             <p className="text-zinc-500 font-medium">Du hast für {dayString} noch keine Acts ausgewählt.</p>
           </div>
         ) : (
-          <div className="w-full border sm:rounded-2xl border-zinc-800/60 bg-zinc-900/30 shadow-inner overflow-hidden">
-            <div className="w-full flex relative" style={{ height: `${totalGridMinutes * PIXELS_PER_MINUTE + 60}px` }}>
+          // Auf Mobile: Randloses (edge-to-edge) Scrollen ohne Kasten-Look. Auf Desktop: Schöner Rahmen.
+          <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-hide border-y sm:border sm:rounded-2xl border-zinc-800/60 bg-zinc-950 sm:bg-zinc-900/30">
+            
+            {/* Mindestbreite 700px erzwingt auf Handys scrollen, stellt aber lesbare Textgröße sicher */}
+            <div className="min-w-[700px] w-full flex relative" style={{ height: `${totalGridMinutes * PIXELS_PER_MINUTE + 60}px` }}>
               
               {/* Zeit-Achse (Y-Achse) */}
-              <div className="w-10 sm:w-16 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-950/40 z-20 relative top-[40px]">
+              <div className="w-12 sm:w-16 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-900/40 z-20 relative top-[40px]">
                 {timelineHours.map((mins) => {
                   const hourLabel = `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:00`;
                   const topPx = (mins - startHourMins) * PIXELS_PER_MINUTE;
                   return (
-                    <div key={mins} className="absolute w-full text-right pr-1 sm:pr-2" style={{ top: topPx - 10 }}>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500">{hourLabel}</span>
+                    <div key={mins} className="absolute w-full text-right pr-1.5 sm:pr-2" style={{ top: topPx - 8 }}>
+                      <span className="text-[10px] font-bold text-zinc-500">{hourLabel}</span>
                     </div>
                   );
                 })}
@@ -506,7 +454,6 @@ export default function App() {
                 {timelineStages.map(stage => {
                   const stageActs = actsToDisplay.filter(a => a.stage === stage);
                   
-                  // Farben für die Header-Border
                   const headerColor = stage === 'Forest Stage' ? 'border-b-green-500' :
                                       stage === 'River Stage' ? 'border-b-blue-500' :
                                       stage === 'Mountain Stage' ? 'border-b-purple-500' : 'border-b-orange-500';
@@ -514,8 +461,8 @@ export default function App() {
                   return (
                     <div key={stage} className="flex-1 border-r border-zinc-800/40 last:border-r-0 relative group min-w-0">
                       {/* Spalten-Header */}
-                      <div className={`h-[40px] sticky top-0 bg-zinc-900/90 backdrop-blur-sm border-b-2 ${headerColor} z-30 flex items-center justify-center px-0.5 sm:px-1 overflow-hidden`}>
-                        <span className="text-[8px] sm:text-[10px] font-black uppercase text-zinc-300 truncate tracking-tighter" title={stage}>{stage.replace(' Stage', '')}</span>
+                      <div className={`h-[40px] sticky top-0 bg-zinc-900/95 backdrop-blur-md border-b-2 ${headerColor} z-30 flex items-center justify-center px-1 overflow-hidden`}>
+                        <span className="text-[11px] sm:text-xs font-black uppercase text-zinc-300 truncate" title={stage}>{stage.replace(' Stage', '')}</span>
                       </div>
                       
                       {/* Spalten-Inhalt (Acts) */}
@@ -529,7 +476,6 @@ export default function App() {
                           const myVote = myVotes[act.id];
                           const totalAttendees = getActAttendees(act.id).definitely.length + getActAttendees(act.id).ifFits.length;
                           
-                          // Block Styling basiert auf eigenem Vote
                           const blockClasses = myVote === 'definitely' 
                             ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100 hover:bg-emerald-500/30' 
                             : myVote === 'if-fits' 
@@ -540,29 +486,27 @@ export default function App() {
                             <div 
                               key={act.id}
                               onClick={() => setModalActId(act.id)}
-                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 border rounded p-1 sm:p-1.5 cursor-pointer transition-all overflow-hidden flex flex-col shadow-lg backdrop-blur-sm ${blockClasses}`}
-                              style={{ 
-                                top: topPx, 
-                                height: heightPx - 2 // -2 für kleinen Abstand
-                              }}
+                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 border rounded-md p-1.5 cursor-pointer transition-all overflow-hidden flex flex-col shadow-lg backdrop-blur-md ${blockClasses}`}
+                              style={{ top: topPx, height: heightPx - 2 }}
                             >
-                              <span className="text-[8px] sm:text-[9px] font-bold opacity-75 mb-0.5 leading-none truncate">
-                                {act.time}-{act.endTime}
+                              <span className="text-[10px] font-bold opacity-80 mb-0.5 leading-none truncate">
+                                {act.time} - {act.endTime}
                               </span>
-                              <span className="text-[9px] sm:text-[11px] font-black leading-tight truncate">
+                              {/* Größere Schrift, besser lesbar */}
+                              <span className="text-xs font-black leading-tight overflow-hidden text-ellipsis line-clamp-2">
                                 {act.name}
                               </span>
                               
                               {/* Icon Badge für Crew */}
                               {totalAttendees > 0 && (
-                                <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 flex items-center gap-0.5 bg-black/40 px-1 rounded text-[7px] sm:text-[8px] font-bold">
+                                <div className="absolute bottom-1 right-1 flex items-center gap-0.5 bg-black/50 px-1 rounded text-[9px] font-bold">
                                   <Users size={8} /> {totalAttendees}
                                 </div>
                               )}
                               
                               {/* Vote Icons */}
                               {myVote && (
-                                <div className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1">
+                                <div className="absolute top-1 right-1">
                                   <Check size={10} className={myVote === 'definitely' ? 'text-emerald-400' : 'text-yellow-400'} />
                                 </div>
                               )}
@@ -583,13 +527,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24 font-sans">
-      {/* Scrollbar-Hide CSS Injection */}
       <style dangerouslySetInnerHTML={{__html: `
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
-      {/* Header */}
       <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40 shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center mb-4">
@@ -601,43 +543,23 @@ export default function App() {
                 <User size={14} className="text-emerald-500"/> 
                 <span className="font-medium text-zinc-200">{userName}</span>
               </div>
-              <button 
-                onClick={handleLogout}
-                className="text-zinc-500 hover:text-red-400 transition-colors p-2"
-                title="Name ändern"
-              >
+              <button onClick={handleLogout} className="text-zinc-500 hover:text-red-400 transition-colors p-2">
                 <LogOut size={18} />
               </button>
             </div>
           </div>
           
-          {/* Suchleiste nur im Timetable */}
           {currentTab === 'timetable' && (
             <div className="mb-4 relative">
               <div className={`flex items-center border rounded-xl overflow-hidden transition-colors ${isSearching ? 'border-emerald-500 bg-zinc-950' : 'border-zinc-800 bg-zinc-900'}`}>
                 <Search className={`ml-3 ${isSearching ? 'text-emerald-500' : 'text-zinc-500'}`} size={18} />
                 <input
-                  type="text"
-                  placeholder="Suche nach Bands..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    if(e.target.value.length > 0) {
-                      setIsSearching(true);
-                    } else {
-                      setIsSearching(false);
-                    }
-                  }}
+                  type="text" placeholder="Suche nach Bands..." value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setIsSearching(e.target.value.length > 0); }}
                   className="w-full bg-transparent border-none text-white px-3 py-2.5 focus:outline-none placeholder-zinc-500"
                 />
                 {searchQuery && (
-                  <button 
-                    onClick={() => {
-                      setSearchQuery('');
-                      setIsSearching(false);
-                    }}
-                    className="p-2 mr-1 text-zinc-400 hover:text-white"
-                  >
+                  <button onClick={() => { setSearchQuery(''); setIsSearching(false); }} className="p-2 mr-1 text-zinc-400 hover:text-white">
                     <X size={18} />
                   </button>
                 )}
@@ -645,7 +567,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Titel für Mein Plan */}
           {currentTab === 'myplan' && !isSearching && (
             <div className="pb-3">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -655,7 +576,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Titel für Crew */}
           {currentTab === 'crew' && (
             <div className="pb-3 flex items-center gap-2">
               {selectedCrewMember ? (
@@ -671,42 +591,31 @@ export default function App() {
             </div>
           )}
 
-          {/* Day & View Filter für Timetable, Mein Plan & Crew Detail */}
           {(currentTab === 'timetable' || currentTab === 'myplan' || (currentTab === 'crew' && selectedCrewMember)) && !isSearching && (
             <>
               <div className="flex justify-between items-center pb-3">
-                {/* Day Navigation */}
                 <div className="flex gap-2 overflow-x-auto scrollbar-hide pr-4">
                   {days.map(day => (
                     <button
-                      key={day}
-                      onClick={() => { setActiveDay(day); setExpandedAct(null); }}
+                      key={day} onClick={() => { setActiveDay(day); setExpandedAct(null); }}
                       className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                        activeDay === day 
-                          ? 'bg-emerald-500 text-zinc-950' 
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                        activeDay === day ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                       }`}
                     >
                       {day}
                     </button>
                   ))}
                 </div>
-                
-                {/* View Toggle */}
                 {viewToggleUI}
               </div>
 
-              {/* Stage Filter (nur in Listenansicht Timetable relevant) */}
               {currentTab === 'timetable' && viewMode === 'list' && (
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mt-1">
                   {stages.map(stage => (
                     <button
-                      key={stage}
-                      onClick={() => { setActiveStage(stage); setExpandedAct(null); }}
+                      key={stage} onClick={() => { setActiveStage(stage); setExpandedAct(null); }}
                       className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border ${
-                        activeStage === stage 
-                          ? 'bg-zinc-200 text-zinc-900 border-zinc-200' 
-                          : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-white'
+                        activeStage === stage ? 'bg-zinc-200 text-zinc-900 border-zinc-200' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-white'
                       }`}
                     >
                       {stage === 'Alle' ? <Filter size={12} /> : null}
@@ -720,15 +629,12 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        
-        {/* --- VIEW: TIMETABLE --- */}
+      <main className="max-w-4xl mx-auto sm:px-4 py-6 space-y-4">
+        {/* VIEW: TIMETABLE */}
         {currentTab === 'timetable' && (
           <>
-            {/* LISTEN MODUS */}
             {(viewMode === 'list' || isSearching) && (
-              <div className="space-y-4">
+              <div className="space-y-4 px-4 sm:px-0">
                 {actsForDay.map(act => {
                   const isExpanded = expandedAct === act.id;
                   const attendees = getActAttendees(act.id);
@@ -736,38 +642,26 @@ export default function App() {
                   const myVote = myVotes[act.id] || null;
 
                   return (
-                    <div 
-                      key={act.id} 
-                      className={`rounded-xl border transition-all duration-200 overflow-hidden ${
-                        myVote === 'definitely' ? 'border-emerald-500/50 bg-emerald-500/5' : 
-                        myVote === 'if-fits' ? 'border-yellow-500/30 bg-yellow-500/5' : 
-                        'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
-                      }`}
-                    >
-                      <div 
-                        className="p-4 cursor-pointer flex items-center gap-4"
-                        onClick={() => setExpandedAct(isExpanded ? null : act.id)}
-                      >
+                    <div key={act.id} className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+                      myVote === 'definitely' ? 'border-emerald-500/50 bg-emerald-500/5' : 
+                      myVote === 'if-fits' ? 'border-yellow-500/30 bg-yellow-500/5' : 
+                      'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
+                    }`}>
+                      <div className="p-4 cursor-pointer flex items-center gap-4" onClick={() => setExpandedAct(isExpanded ? null : act.id)}>
                         <div className="flex flex-col items-center justify-center min-w-[75px] text-center border-r border-zinc-800 pr-4">
                           {isSearching && <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-1">{act.day.substring(0,2)}</span>}
                           <span className="text-lg font-black text-white leading-none">{act.time}</span>
                           <span className="text-xs font-medium text-zinc-500 mt-1">{act.endTime}</span>
                         </div>
-                        
                         <div className="flex-1">
                           <h3 className="text-lg font-bold text-white mb-1 leading-tight">{act.name}</h3>
                           <div className="flex items-center gap-3 text-xs font-medium text-zinc-400">
                             <span className="flex items-center gap-1">
-                              <MapPin size={12} className={
-                                act.stage === 'Forest Stage' ? 'text-green-400' :
-                                act.stage === 'River Stage' ? 'text-blue-400' :
-                                act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'
-                              } />
+                              <MapPin size={12} className={act.stage === 'Forest Stage' ? 'text-green-400' : act.stage === 'River Stage' ? 'text-blue-400' : act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'} />
                               {act.stage}
                             </span>
                           </div>
                         </div>
-
                         <div className="flex flex-col items-end gap-2">
                           {totalAttendees > 0 && (
                             <div className="flex items-center gap-1.5 bg-zinc-800 px-2 py-1 rounded text-xs font-bold">
@@ -784,55 +678,33 @@ export default function App() {
                           <div className="mb-5">
                             <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
                             <div className="flex flex-wrap gap-2">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }}
-                                className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                                  myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                }`}
-                              >
+                              <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                 {myVote === 'definitely' && <Check size={16} />} Auf jeden Fall!
                               </button>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }}
-                                className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                                  myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                }`}
-                              >
+                              <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                 {myVote === 'if-fits' && <Check size={16} />} Nur wenns passt
                               </button>
                               {myVote && (
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }}
-                                  className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all"
-                                >
+                                <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all">
                                   Löschen
                                 </button>
                               )}
                             </div>
                           </div>
-
                           <div>
                             <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
-                            {totalAttendees === 0 ? (
-                              <p className="text-sm text-zinc-500 italic">Noch niemand eingetragen.</p>
-                            ) : (
+                            {totalAttendees === 0 ? <p className="text-sm text-zinc-500 italic">Noch niemand eingetragen.</p> : (
                               <div className="space-y-2">
                                 {attendees.definitely.length > 0 && (
                                   <div className="flex items-start gap-2 text-sm">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
-                                    <div className="text-zinc-300">
-                                      <span className="font-semibold text-emerald-400">Dabei: </span>
-                                      {attendees.definitely.join(', ')}
-                                    </div>
+                                    <div className="text-zinc-300"><span className="font-semibold text-emerald-400">Dabei: </span>{attendees.definitely.join(', ')}</div>
                                   </div>
                                 )}
                                 {attendees.ifFits.length > 0 && (
                                   <div className="flex items-start gap-2 text-sm">
                                     <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
-                                    <div className="text-zinc-400">
-                                      <span className="font-semibold text-yellow-500">Vielleicht: </span>
-                                      {attendees.ifFits.join(', ')}
-                                    </div>
+                                    <div className="text-zinc-400"><span className="font-semibold text-yellow-500">Vielleicht: </span>{attendees.ifFits.join(', ')}</div>
                                   </div>
                                 )}
                               </div>
@@ -843,56 +715,37 @@ export default function App() {
                     </div>
                   );
                 })}
-                
                 {actsForDay.length === 0 && (
                   <div className="text-center py-12">
                     <Calendar className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-                    <p className="text-zinc-500 font-medium">
-                      {isSearching ? 'Keine Acts für diese Suche gefunden.' : 'Keine Acts für diesen Filter gefunden.'}
-                    </p>
+                    <p className="text-zinc-500 font-medium">{isSearching ? 'Keine Acts für diese Suche gefunden.' : 'Keine Acts für diesen Filter gefunden.'}</p>
                   </div>
                 )}
               </div>
             )}
-
-            {/* TIMELINE MODUS */}
             {(viewMode === 'timeline' && !isSearching) && renderTimelineGrid(activeDay, SORTED_ACTS.filter(a => a.day === activeDay))}
-            
-            {/* Modal für Timeline Klicks rendern */}
             {renderActModal()}
           </>
         )}
 
-        {/* --- VIEW: MEIN PLAN --- */}
+        {/* VIEW: MEIN PLAN */}
         {currentTab === 'myplan' && (
           <div className="space-y-4">
             {myActs.filter(a => a.day === activeDay).length === 0 ? (
-              <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+              <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800 mx-4 sm:mx-0">
                 <CalendarDays className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
                 <p className="text-zinc-400 font-medium">Du hast für {activeDay} noch keine Acts ausgewählt.</p>
-                <button 
-                  onClick={() => setCurrentTab('timetable')}
-                  className="mt-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-bold transition-colors"
-                >
-                  Zum Timetable wechseln
-                </button>
+                <button onClick={() => setCurrentTab('timetable')} className="mt-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-bold transition-colors">Zum Timetable wechseln</button>
               </div>
             ) : (
-              viewMode === 'timeline' ? (
-                // Mein Plan im Timeline-Modus
-                renderTimelineGrid(activeDay, myActs.filter(a => a.day === activeDay), false)
-              ) : (
-                // Mein Plan im Listen-Modus
-                <div className="space-y-4">
+              viewMode === 'timeline' ? renderTimelineGrid(activeDay, myActs.filter(a => a.day === activeDay), false) : (
+                <div className="space-y-4 px-4 sm:px-0">
                   {myActs.filter(a => a.day === activeDay).map((act) => {
                     const startMins = timeToMinutes(act.time);
                     const endMins = timeToMinutes(act.endTime);
-                    
-                    // Live Status berechnen
                     const isToday = currentDayString === act.day;
                     const isLiveNow = isToday && currentMinutes >= startMins && currentMinutes <= endMins;
                     const isPast = isToday && currentMinutes > endMins;
-                    
                     const voteStatus = myVotes[act.id];
                     const isExpanded = expandedAct === act.id;
                     const attendees = getActAttendees(act.id);
@@ -900,121 +753,56 @@ export default function App() {
 
                     return (
                       <div key={act.id} className="relative flex gap-4">
-                        {/* Timeline Line */}
                         <div className="absolute left-[29px] top-8 bottom-[-24px] w-0.5 bg-zinc-800 last:hidden"></div>
-                        
-                        {/* Time Block */}
                         <div className="flex flex-col items-end min-w-[60px] pt-1 z-10 bg-zinc-950">
                           <span className={`text-base font-black ${isPast ? 'text-zinc-600' : 'text-zinc-200'}`}>{act.time}</span>
                           <span className="text-xs font-medium text-zinc-600">{act.endTime}</span>
                         </div>
-
-                        {/* Act Card */}
-                        <div className={`flex-1 rounded-xl border z-10 transition-all ${
-                          isLiveNow ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
-                          isPast ? 'border-zinc-800/50 bg-zinc-900/30 opacity-60' :
-                          'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700'
-                        }`}>
-                          {/* Clickable Area */}
-                          <div 
-                            className="p-4 cursor-pointer"
-                            onClick={() => setExpandedAct(isExpanded ? null : act.id)}
-                          >
+                        <div className={`flex-1 rounded-xl border z-10 transition-all ${isLiveNow ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : isPast ? 'border-zinc-800/50 bg-zinc-900/30 opacity-60' : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700'}`}>
+                          <div className="p-4 cursor-pointer" onClick={() => setExpandedAct(isExpanded ? null : act.id)}>
                             <div className="flex justify-between items-start mb-1">
-                              <h4 className={`text-lg font-bold leading-tight ${isPast ? 'text-zinc-400' : 'text-white'}`}>
-                                {act.name}
-                              </h4>
+                              <h4 className={`text-lg font-bold leading-tight ${isPast ? 'text-zinc-400' : 'text-white'}`}>{act.name}</h4>
                               <div className="flex items-center gap-2">
-                                {isLiveNow && (
-                                  <span className="bg-emerald-500 text-zinc-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-                                    Jetzt
-                                  </span>
-                                )}
+                                {isLiveNow && <span className="bg-emerald-500 text-zinc-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Jetzt</span>}
                                 {isExpanded ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
                               </div>
                             </div>
-                            
                             <div className="flex items-center gap-3 text-xs font-medium text-zinc-400 mb-3">
-                              <span className="flex items-center gap-1">
-                                <MapPin size={12} className={
-                                  act.stage === 'Forest Stage' ? 'text-green-400' :
-                                  act.stage === 'River Stage' ? 'text-blue-400' :
-                                  act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'
-                                } />
-                                {act.stage}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock size={12} />
-                                {startMins < 0 ? '' : `${endMins - startMins} Min.`}
-                              </span>
-                              {totalAttendees > 1 && (
-                                <span className="flex items-center gap-1 ml-auto bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300">
-                                  <Users size={12} /> {totalAttendees}
-                                </span>
-                              )}
+                              <span className="flex items-center gap-1"><MapPin size={12} className={act.stage === 'Forest Stage' ? 'text-green-400' : act.stage === 'River Stage' ? 'text-blue-400' : act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'} />{act.stage}</span>
+                              <span className="flex items-center gap-1"><Clock size={12} />{startMins < 0 ? '' : `${endMins - startMins} Min.`}</span>
+                              {totalAttendees > 1 && <span className="flex items-center gap-1 ml-auto bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300"><Users size={12} /> {totalAttendees}</span>}
                             </div>
-
                             <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/50">
-                              <span className={`text-xs font-bold px-2 py-1 rounded-md ${
-                                voteStatus === 'definitely' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-500'
-                              }`}>
-                                {voteStatus === 'definitely' ? 'Auf jeden Fall' : 'Nur wenns passt'}
-                              </span>
+                              <span className={`text-xs font-bold px-2 py-1 rounded-md ${voteStatus === 'definitely' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-500'}`}>{voteStatus === 'definitely' ? 'Auf jeden Fall' : 'Nur wenns passt'}</span>
                             </div>
                           </div>
-
-                          {/* Expandable Crew Status */}
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-2 border-t border-zinc-800/50 bg-zinc-900/80">
                               <div className="mb-5">
                                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du dabei?</p>
                                 <div className="flex flex-wrap gap-2">
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }}
-                                    className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                                      voteStatus === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                    }`}
-                                  >
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${voteStatus === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {voteStatus === 'definitely' && <Check size={16} />} Auf jeden Fall!
                                   </button>
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }}
-                                    className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                                      voteStatus === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                    }`}
-                                  >
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${voteStatus === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {voteStatus === 'if-fits' && <Check size={16} />} Nur wenns passt
                                   </button>
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }}
-                                    className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all"
-                                  >
-                                    Löschen
-                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all">Löschen</button>
                                 </div>
                               </div>
-
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
-                              {totalAttendees <= 1 ? (
-                                <p className="text-sm text-zinc-500 italic">Außer dir noch niemand eingetragen.</p>
-                              ) : (
+                              {totalAttendees <= 1 ? <p className="text-sm text-zinc-500 italic">Außer dir noch niemand eingetragen.</p> : (
                                 <div className="space-y-2">
                                   {attendees.definitely.length > 0 && (
                                     <div className="flex items-start gap-2 text-sm">
                                       <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
-                                      <div className="text-zinc-300">
-                                        <span className="font-semibold text-emerald-400">Dabei: </span>
-                                        {attendees.definitely.join(', ')}
-                                      </div>
+                                      <div className="text-zinc-300"><span className="font-semibold text-emerald-400">Dabei: </span>{attendees.definitely.join(', ')}</div>
                                     </div>
                                   )}
                                   {attendees.ifFits.length > 0 && (
                                     <div className="flex items-start gap-2 text-sm">
                                       <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
-                                      <div className="text-zinc-400">
-                                        <span className="font-semibold text-yellow-500">Vielleicht: </span>
-                                        {attendees.ifFits.join(', ')}
-                                      </div>
+                                      <div className="text-zinc-400"><span className="font-semibold text-yellow-500">Vielleicht: </span>{attendees.ifFits.join(', ')}</div>
                                     </div>
                                   )}
                                 </div>
@@ -1028,15 +816,13 @@ export default function App() {
                 </div>
               )
             )}
-            
-            {/* Modal für Timeline Klicks rendern (falls Timeline in Mein Plan aktiv ist) */}
             {viewMode === 'timeline' && renderActModal()}
           </div>
         )}
 
-        {/* --- VIEW: CREW --- */}
+        {/* VIEW: CREW */}
         {currentTab === 'crew' && !selectedCrewMember && (
-          <div className="space-y-3">
+          <div className="space-y-3 px-4 sm:px-0">
             {Object.keys(allVotes).length === 0 ? (
               <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
                 <Users className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
@@ -1048,18 +834,10 @@ export default function App() {
                 .map(([name, votes]) => {
                   const voteCount = Object.keys(votes).length;
                   return (
-                    <div 
-                      key={name} 
-                      onClick={() => setSelectedCrewMember(name)} 
-                      className="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl flex justify-between items-center cursor-pointer hover:border-emerald-500/50 hover:bg-zinc-900 transition-all"
-                    >
+                    <div key={name} onClick={() => setSelectedCrewMember(name)} className="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl flex justify-between items-center cursor-pointer hover:border-emerald-500/50 hover:bg-zinc-900 transition-all">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-inner ${name === userName ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-emerald-500'}`}>
-                          {name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className={`font-bold ${name === userName ? 'text-emerald-400' : 'text-white'}`}>
-                          {name} {name === userName && '(Du)'}
-                        </span>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-inner ${name === userName ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-emerald-500'}`}>{name.charAt(0).toUpperCase()}</div>
+                        <span className={`font-bold ${name === userName ? 'text-emerald-400' : 'text-white'}`}>{name} {name === userName && '(Du)'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800/50">
                         <span>{voteCount} Acts</span>
@@ -1075,24 +853,19 @@ export default function App() {
           <div className="space-y-4">
             {(() => {
               const friendVotes = allVotes[selectedCrewMember] || {};
-              // Acts des Freundes filtern, und zwar NUR für den aktuell ausgewählten Tag!
               const friendActsDay = SORTED_ACTS.filter(act => friendVotes[act.id] && act.day === activeDay);
 
               if (friendActsDay.length === 0) {
                 return (
-                  <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                  <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800 mx-4 sm:mx-0">
                     <CalendarDays className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
                     <p className="text-zinc-400 font-medium">{selectedCrewMember} hat für {activeDay} noch keine Acts ausgewählt.</p>
                   </div>
                 );
               }
 
-              return viewMode === 'timeline' ? (
-                // Crew Detail im Timeline-Modus
-                renderTimelineGrid(activeDay, friendActsDay, false)
-              ) : (
-                // Crew Detail im Listen-Modus
-                <div className="space-y-4">
+              return viewMode === 'timeline' ? renderTimelineGrid(activeDay, friendActsDay, false) : (
+                <div className="space-y-4 px-4 sm:px-0">
                   {friendActsDay.map((act) => {
                     const startMins = timeToMinutes(act.time);
                     const endMins = timeToMinutes(act.endTime);
@@ -1109,125 +882,56 @@ export default function App() {
 
                     return (
                       <div key={act.id} className="relative flex gap-4">
-                        {/* Timeline Line */}
                         <div className="absolute left-[29px] top-8 bottom-[-24px] w-0.5 bg-zinc-800 last:hidden"></div>
-                        
-                        {/* Time Block */}
                         <div className="flex flex-col items-end min-w-[60px] pt-1 z-10 bg-zinc-950">
                           <span className={`text-base font-black ${isPast ? 'text-zinc-600' : 'text-zinc-200'}`}>{act.time}</span>
                           <span className="text-xs font-medium text-zinc-600">{act.endTime}</span>
                         </div>
-
-                        {/* Act Card */}
-                        <div className={`flex-1 rounded-xl border z-10 transition-all ${
-                          isLiveNow ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
-                          isPast ? 'border-zinc-800/50 bg-zinc-900/30 opacity-60' :
-                          'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700'
-                        }`}>
-                          <div 
-                            className="p-4 cursor-pointer"
-                            onClick={() => setExpandedAct(isExpanded ? null : act.id)}
-                          >
+                        <div className={`flex-1 rounded-xl border z-10 transition-all ${isLiveNow ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : isPast ? 'border-zinc-800/50 bg-zinc-900/30 opacity-60' : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700'}`}>
+                          <div className="p-4 cursor-pointer" onClick={() => setExpandedAct(isExpanded ? null : act.id)}>
                             <div className="flex justify-between items-start mb-1">
-                              <h4 className={`text-lg font-bold leading-tight ${isPast ? 'text-zinc-400' : 'text-white'}`}>
-                                {act.name}
-                              </h4>
+                              <h4 className={`text-lg font-bold leading-tight ${isPast ? 'text-zinc-400' : 'text-white'}`}>{act.name}</h4>
                               <div className="flex items-center gap-2">
-                                {isLiveNow && (
-                                  <span className="bg-emerald-500 text-zinc-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-                                    Jetzt
-                                  </span>
-                                )}
+                                {isLiveNow && <span className="bg-emerald-500 text-zinc-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Jetzt</span>}
                                 {isExpanded ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
                               </div>
                             </div>
-                            
                             <div className="flex items-center gap-3 text-xs font-medium text-zinc-400 mb-3">
-                              <span className="flex items-center gap-1">
-                                <MapPin size={12} className={
-                                  act.stage === 'Forest Stage' ? 'text-green-400' :
-                                  act.stage === 'River Stage' ? 'text-blue-400' :
-                                  act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'
-                                } />
-                                {act.stage}
-                              </span>
-                              {totalAttendees > 1 && (
-                                <span className="flex items-center gap-1 ml-auto bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300">
-                                  <Users size={12} /> {totalAttendees}
-                                </span>
-                              )}
+                              <span className="flex items-center gap-1"><MapPin size={12} className={act.stage === 'Forest Stage' ? 'text-green-400' : act.stage === 'River Stage' ? 'text-blue-400' : act.stage === 'Mountain Stage' ? 'text-purple-400' : 'text-orange-400'} />{act.stage}</span>
+                              {totalAttendees > 1 && <span className="flex items-center gap-1 ml-auto bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300"><Users size={12} /> {totalAttendees}</span>}
                             </div>
-
                             <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/50">
-                              <span className={`text-xs font-bold px-2 py-1 rounded-md ${
-                                voteStatus === 'definitely' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-500'
-                              }`}>
-                                {voteStatus === 'definitely' ? 'Auf jeden Fall' : 'Nur wenns passt'}
-                              </span>
-                              
-                              {myVote && selectedCrewMember !== userName && (
-                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
-                                  <Check size={12} />
-                                  Du bist auch da!
-                                </span>
-                              )}
+                              <span className={`text-xs font-bold px-2 py-1 rounded-md ${voteStatus === 'definitely' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-500'}`}>{voteStatus === 'definitely' ? 'Auf jeden Fall' : 'Nur wenns passt'}</span>
+                              {myVote && selectedCrewMember !== userName && <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md"><Check size={12} />Du bist auch da!</span>}
                             </div>
                           </div>
-
-                          {/* Expandable Crew Status & Voting */}
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-2 border-t border-zinc-800/50 bg-zinc-900/80">
                               <div className="mb-5">
                                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Bist du auch dabei?</p>
                                 <div className="flex flex-wrap gap-2">
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }}
-                                    className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                                      myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                    }`}
-                                  >
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'definitely'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'definitely' ? 'bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {myVote === 'definitely' && <Check size={16} />} Auf jeden Fall!
                                   </button>
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }}
-                                    className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                                      myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                    }`}
-                                  >
+                                  <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'if-fits'); }} className={`flex-1 min-w-[120px] py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${myVote === 'if-fits' ? 'bg-yellow-500 text-zinc-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                     {myVote === 'if-fits' && <Check size={16} />} Nur wenns passt
                                   </button>
-                                  {myVote && (
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }}
-                                      className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all"
-                                    >
-                                      Löschen
-                                    </button>
-                                  )}
+                                  {myVote && <button onClick={(e) => { e.stopPropagation(); handleVote(act.id, 'remove'); }} className="py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-all">Löschen</button>}
                                 </div>
                               </div>
-
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Crew Status</p>
-                              {totalAttendees <= 1 ? (
-                                <p className="text-sm text-zinc-500 italic">Außer dir noch niemand eingetragen.</p>
-                              ) : (
+                              {totalAttendees <= 1 ? <p className="text-sm text-zinc-500 italic">Noch niemand sonst eingetragen.</p> : (
                                 <div className="space-y-2">
                                   {attendees.definitely.length > 0 && (
                                     <div className="flex items-start gap-2 text-sm">
                                       <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
-                                      <div className="text-zinc-300">
-                                        <span className="font-semibold text-emerald-400">Dabei: </span>
-                                        {attendees.definitely.join(', ')}
-                                      </div>
+                                      <div className="text-zinc-300"><span className="font-semibold text-emerald-400">Dabei: </span>{attendees.definitely.join(', ')}</div>
                                     </div>
                                   )}
                                   {attendees.ifFits.length > 0 && (
                                     <div className="flex items-start gap-2 text-sm">
                                       <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
-                                      <div className="text-zinc-400">
-                                        <span className="font-semibold text-yellow-500">Vielleicht: </span>
-                                        {attendees.ifFits.join(', ')}
-                                      </div>
+                                      <div className="text-zinc-400"><span className="font-semibold text-yellow-500">Vielleicht: </span>{attendees.ifFits.join(', ')}</div>
                                     </div>
                                   )}
                                 </div>
@@ -1241,46 +945,27 @@ export default function App() {
                 </div>
               );
             })()}
-            
-            {/* Modal für Timeline Klicks rendern */}
             {viewMode === 'timeline' && renderActModal()}
           </div>
         )}
       </main>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 w-full bg-zinc-900 border-t border-zinc-800 pb-safe z-50">
         <div className="max-w-3xl mx-auto flex">
-          <button 
-            onClick={() => setCurrentTab('timetable')}
-            className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors ${
-              currentTab === 'timetable' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
+          <button onClick={() => setCurrentTab('timetable')} className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors ${currentTab === 'timetable' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
             <List size={20} />
             <span className="text-[10px] font-bold uppercase tracking-wider">Timetable</span>
           </button>
-          <button 
-            onClick={() => setCurrentTab('myplan')}
-            className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${
-              currentTab === 'myplan' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
+          <button onClick={() => setCurrentTab('myplan')} className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${currentTab === 'myplan' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
             <CalendarDays size={20} />
             <span className="text-[10px] font-bold uppercase tracking-wider">Mein Plan</span>
           </button>
-          <button 
-            onClick={() => { setCurrentTab('crew'); setSelectedCrewMember(null); }}
-            className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${
-              currentTab === 'crew' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
+          <button onClick={() => { setCurrentTab('crew'); setSelectedCrewMember(null); }} className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors relative ${currentTab === 'crew' ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
             <Users size={20} />
             <span className="text-[10px] font-bold uppercase tracking-wider">Crew</span>
           </button>
         </div>
       </nav>
-
     </div>
   );
 }
